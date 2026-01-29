@@ -1,25 +1,25 @@
 import express from 'express';
 import { ExportController } from '../controllers/exportController';
 import { authenticate } from '../middleware/authenticate';
-import { requireRole } from '../middleware/authorize';
-import { Role } from '../types/auth';
+import { requireRole, requirePermission } from '../middleware/authorize';
+import { Role, Permission } from '../types/auth';
 
 const router = express.Router();
 
 // Protect all export routes
 router.use(authenticate);
 
-// Export Citizens (CSV) - Admin, Super Admin, Data Entry
+// Export Citizens (CSV) - Requires REPORTS_EXPORT permission
 router.get(
     '/citizens',
-    requireRole([Role.ADMIN, Role.SUPER_ADMIN, Role.DATA_ENTRY]),
+    requirePermission(Permission.REPORTS_EXPORT),
     ExportController.exportCitizens
 );
 
-// Export Visits (Excel) - Admin, Super Admin, Supervisor
+// Export Visits (Excel) - Requires REPORTS_EXPORT permission
 router.get(
     '/visits',
-    requireRole([Role.ADMIN, Role.SUPER_ADMIN, Role.SUPERVISOR]),
+    requirePermission(Permission.REPORTS_EXPORT),
     ExportController.exportVisits
 );
 
@@ -27,6 +27,7 @@ router.get(
 router.get(
     '/reports',
     requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
+    requirePermission(Permission.REPORTS_EXPORT),
     ExportController.generateReport
 );
 

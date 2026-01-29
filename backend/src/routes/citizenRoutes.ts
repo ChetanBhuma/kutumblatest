@@ -112,7 +112,7 @@ router.get(
         query('districtId').optional().trim(),
         query('rangeId').optional().trim(),
         query('vulnerabilityLevel').optional().isIn(['Low', 'Medium', 'High']),
-        query('verificationStatus').optional().isIn(['Pending', 'Approved', 'Rejected']),
+        query('verificationStatus').optional().isIn(['Pending', 'Verified', 'Rejected', 'FieldVerified', 'Suspended']),
         validate
     ],
     asyncHandler(CitizenController.list)
@@ -487,10 +487,10 @@ router.post(
             });
 
             console.log('[Upload] Document record created:', document.id);
-            res.json({ success: true, data: { document } });
+            return res.json({ success: true, data: { document } });
         } catch (error) {
             console.error('[Upload] Critical error:', error);
-            res.status(500).json({ success: false, error: { message: 'Upload failed', details: (error as any).message } });
+            return res.status(500).json({ success: false, error: { message: 'Upload failed', details: (error as any).message } });
         }
     })
 );

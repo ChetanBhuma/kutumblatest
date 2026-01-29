@@ -16,7 +16,7 @@ export class CitizenAddressChangeService {
         const cancelledVisits = await prisma.visit.updateMany({
             where: {
                 seniorCitizenId: citizenId,
-                status: { in: ['SCHEDULED', 'Scheduled'] }
+                status: { in: ['SCHEDULED'] }
             },
             data: {
                 status: 'CANCELLED',

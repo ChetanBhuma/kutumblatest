@@ -47,14 +47,14 @@ export class PasswordResetController {
 
             console.log(`[PASSWORD RESET] Token for ${email}: ${resetToken}`);
 
-            res.json({
+            return res.json({
                 success: true,
                 message: 'If the email exists, a reset link has been sent',
                 // Remove in production:
                 dev_token: process.env.NODE_ENV === 'development' ? resetToken : undefined
             });
         } catch (error) {
-            next(error);
+            return next(error);
         }
     }
 
@@ -100,7 +100,7 @@ export class PasswordResetController {
                 message: 'Password reset successfully'
             });
         } catch (error) {
-            next(error);
+            return next(error);
         }
     }
 }

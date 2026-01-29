@@ -59,7 +59,7 @@ services:
   # Frontend (Next.js)
   frontend:
     build:
-      context: .
+      context: ./frontend
       dockerfile: Dockerfile.frontend
     container_name: scp_frontend
     environment:
@@ -67,7 +67,7 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - .:/app
+      - ./frontend:/app
       - /app/node_modules
       - /app/.next
     depends_on:

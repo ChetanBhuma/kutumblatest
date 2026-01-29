@@ -49,11 +49,11 @@ export const logger = winston.createLogger({
 });
 
 // Add console transport in development
-if (config.env !== 'production') {
-    logger.add(new winston.transports.Console({
-        format: consoleFormat
-    }));
-}
+// Add console transport in ALL environments (Critical for Render/Docker)
+logger.add(new winston.transports.Console({
+    // Use JSON in production for better parsing, Colorized simple text in dev
+    format: config.env === 'production' ? logFormat : consoleFormat
+}));
 
 // Create audit logger for security events
 export const auditLogger = winston.createLogger({

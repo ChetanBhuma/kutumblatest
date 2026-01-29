@@ -81,9 +81,9 @@ export const RolePermissions: Record<Role, Permission[]> = {
         Permission.CITIZENS_READ,
         Permission.VISITS_READ,
         Permission.VISITS_COMPLETE,
-        Permission.SOS_READ,
         Permission.SOS_RESPOND,
-        Permission.REPORTS_READ
+        Permission.REPORTS_READ,
+        Permission.REPORTS_EXPORT
     ],
 
     [Role.SUPERVISOR]: [
@@ -132,7 +132,8 @@ export const RolePermissions: Record<Role, Permission[]> = {
     [Role.DATA_ENTRY]: [
         Permission.CITIZENS_READ,
         Permission.CITIZENS_WRITE,
-        Permission.DOCUMENTS_UPLOAD
+        Permission.DOCUMENTS_UPLOAD,
+        Permission.REPORTS_EXPORT
     ]
 };
 

@@ -15,9 +15,9 @@ export class ExportService {
             { label: 'Gender', value: 'gender' },
             { label: 'Date of Birth', value: 'dateOfBirth' },
             { label: 'Address', value: 'address' },
-            { label: 'District', value: 'beat.policeStation.district.name' },
-            { label: 'Police Station', value: 'beat.policeStation.name' },
-            { label: 'Beat', value: 'beat.name' },
+            { label: 'District', value: 'PoliceStation.District.name' },
+            { label: 'Police Station', value: 'PoliceStation.name' },
+            { label: 'Beat', value: 'Beat.name' },
             { label: 'Status', value: 'status' },
             { label: 'Vulnerability', value: 'vulnerabilityLevel' }
         ];
@@ -36,8 +36,8 @@ export class ExportService {
 
         const json2csvParser = new Parser({ fields });
         // We need to apply sanitization to the data passed to parser
-        // However, json2csv handles object paths. 
-        // A better approach with json2csv is to utilize a transform function if available, 
+        // However, json2csv handles object paths.
+        // A better approach with json2csv is to utilize a transform function if available,
         // or pre-process the data completely even for nested fields.
 
         // Simplified approach: Iterate and sanitize specifically text fields that user inputs
@@ -45,7 +45,8 @@ export class ExportService {
             if (c.fullName) c.fullName = sanitize(c.fullName);
             if (c.address) c.address = sanitize(c.address);
             if (c.Beat?.name) c.Beat.name = sanitize(c.Beat.name);
-            // ... add others if needed
+            if (c.PoliceStation?.name) c.PoliceStation.name = sanitize(c.PoliceStation.name);
+            if (c.PoliceStation?.District?.name) c.PoliceStation.District.name = sanitize(c.PoliceStation.District.name);
         });
 
         return json2csvParser.parse(citizens);

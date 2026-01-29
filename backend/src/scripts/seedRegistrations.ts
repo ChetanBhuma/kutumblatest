@@ -3,7 +3,7 @@ import { PrismaClient, RegistrationStatus } from '@prisma/client';
 const prisma = new PrismaClient();
 
 async function seedRegistrations() {
-    console.log('🌱 Starting to seed citizen registrations...');
+    console.log('Starting to seed citizen registrations...');
 
     try {
         // Get some existing citizens to link registrations
@@ -16,7 +16,7 @@ async function seedRegistrations() {
         });
 
         if (citizens.length === 0) {
-            console.log('⚠️  No citizens found. Please run seedCitizensWithCoordinates.ts first.');
+            console.log('No citizens found. Please run seedCitizensWithCoordinates.ts first.');
             return;
         }
 
@@ -51,7 +51,7 @@ async function seedRegistrations() {
                     }
                 });
 
-                console.log(`✅ Created registration for ${citizen.fullName} - Status: ${status}`);
+                console.log(`Created registration for ${citizen.fullName} - Status: ${status}`);
             }
         }
 
@@ -60,15 +60,15 @@ async function seedRegistrations() {
         const approvedCount = await prisma.citizenRegistration.count({ where: { status: 'APPROVED' } });
         const rejectedCount = await prisma.citizenRegistration.count({ where: { status: 'REJECTED' } });
 
-        console.log(`\n🎉 Successfully seeded registrations!`);
-        console.log(`📊 Stats:`);
+        console.log(`\n Successfully seeded registrations!`);
+        console.log(`Stats:`);
         console.log(`   Total: ${totalRegistrations}`);
         console.log(`   Pending Review: ${pendingCount}`);
         console.log(`   Approved: ${approvedCount}`);
         console.log(`   Rejected: ${rejectedCount}`);
 
     } catch (error) {
-        console.error('❌ Error seeding registrations:', error);
+        console.error('Error seeding registrations:', error);
         throw error;
     } finally {
         await prisma.$disconnect();

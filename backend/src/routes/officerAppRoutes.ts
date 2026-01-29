@@ -2,8 +2,8 @@ import { Router } from 'express';
 import { OfficerAuthController } from '../controllers/auth/officerAuthController';
 import { OfficerDashboardController } from '../controllers/officerDashboardController';
 import { authenticate } from '../middleware/authenticate';
-import { requireRole } from '../middleware/authorize';
-import { Role } from '../types/auth';
+import { requireRole, requirePermission } from '../middleware/authorize';
+import { Role, Permission } from '../types/auth';
 import { VisitController } from '../controllers/visitController';
 
 const router = Router();
@@ -88,7 +88,7 @@ router.get('/assignments', VisitController.getOfficerAssignments);
  *       200:
  *         description: Dashboard metrics
  */
-router.get('/dashboard/metrics', OfficerDashboardController.getMetrics);
+router.get('/dashboard/metrics', requirePermission(Permission.CITIZENS_READ), OfficerDashboardController.getMetrics);
 
 /**
  * @swagger
@@ -102,7 +102,7 @@ router.get('/dashboard/metrics', OfficerDashboardController.getMetrics);
  *       200:
  *         description: List of suggested visits
  */
-router.get('/dashboard/suggestions', OfficerDashboardController.getSuggestions);
+router.get('/dashboard/suggestions', requirePermission(Permission.CITIZENS_READ), OfficerDashboardController.getSuggestions);
 
 /**
  * @swagger
@@ -116,7 +116,7 @@ router.get('/dashboard/suggestions', OfficerDashboardController.getSuggestions);
  *       200:
  *         description: List of beat citizens
  */
-router.get('/dashboard/citizens', OfficerDashboardController.getMyBeatCitizens);
+router.get('/dashboard/citizens', requirePermission(Permission.CITIZENS_READ), OfficerDashboardController.getMyBeatCitizens);
 
 /**
  * @swagger
@@ -141,7 +141,7 @@ router.get('/dashboard/citizens', OfficerDashboardController.getMyBeatCitizens);
  *       200:
  *         description: List of nearby citizens
  */
-router.get('/dashboard/nearby', OfficerDashboardController.getNearbyCitizens);
+router.get('/dashboard/nearby', requirePermission(Permission.CITIZENS_READ), OfficerDashboardController.getNearbyCitizens);
 
 /**
  * @swagger

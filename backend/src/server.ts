@@ -54,11 +54,26 @@ SchedulerService.init();
 registerEventListeners();
 
 // Start server
-httpServer.listen(PORT, () => {
-    logger.info(`🚀 Server running on port ${PORT} in ${config.env} mode`);
-    logger.info(`📚 API Documentation: http://localhost:${PORT}/api/${config.apiVersion}/docs`);
-    logger.info(`❤️  Health Check: http://localhost:${PORT}/health`);
-    logger.info(`🔌 WebSocket server running on port ${PORT}`);
-});
+// Start server
+
+try {
+    httpServer.listen(PORT, '0.0.0.0', () => {
+        console.log('[DEBUG] Server listen callback triggered');
+        logger.info(`Server running on port ${PORT} in ${config.env} mode`);
+        logger.info(`API Documentation: http://localhost:${PORT}/api/${config.apiVersion}/docs`);
+        logger.info(`Health Check: http://localhost:${PORT}/health`);
+        logger.info(`WebSocket server running on port ${PORT}`);
+    });
+
+    httpServer.on('error', (err: any) => {
+        console.error('[DEBUG] HTTP Server Error Event:', err);
+        logger.error('HTTP Server Error:', err);
+        process.exit(1);
+    });
+
+} catch (err) {
+    console.error('[DEBUG] Accessing httpServer.listen failed:', err);
+    process.exit(1);
+}
 
 export default httpServer;

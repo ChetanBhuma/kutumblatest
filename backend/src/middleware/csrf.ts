@@ -19,7 +19,7 @@ export const csrfProtection = csrf({
  * Middleware to attach CSRF token to response
  */
 export const attachCsrfToken = (req: Request, res: Response, next: NextFunction) => {
-    res.locals.csrfToken = req.csrfToken();
+    res.locals.csrfToken = (req as any).csrfToken();
     next();
 };
 
@@ -30,7 +30,7 @@ export const getCsrfToken = (req: Request, res: Response) => {
     res.json({
         success: true,
         data: {
-            csrfToken: req.csrfToken()
+            csrfToken: (req as any).csrfToken()
         }
     });
 };

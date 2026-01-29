@@ -21,6 +21,12 @@ export class OfficerController {
                 booleanFields: ['isActive']
             });
 
+            // Handle 'hasBeat' filter
+            if (req.query.hasBeat === 'true') {
+                 where.beatId = { not: null };
+            }
+
+
             // Apply Data Scope
             const scope = req.dataScope;
             if (scope && scope.level !== 'ALL') {
@@ -289,26 +295,29 @@ export class OfficerController {
             const { id } = req.params;
             const { beatId } = req.body;
 
-            // Verify beat exists
-            const beat = await prisma.beat.findUnique({ where: { id: beatId } });
-            if (!beat) {
-                throw new AppError('Beat not found', 404);
+            // Verify beat exists only if beatId is provided
+            let beat = null;
+            if (beatId) {
+                beat = await prisma.beat.findUnique({ where: { id: beatId } });
+                if (!beat) {
+                    throw new AppError('Beat not found', 404);
+                }
             }
 
             const officer = await prisma.beatOfficer.update({
                 where: { id },
-                data: { beatId },
+                data: { beatId: beatId || null }, // Set to null if beatId is falsy
                 include: {
                     Beat: true,
                     PoliceStation: true
                 }
             });
 
-            auditLogger.info('Officer assigned to beat', {
+            auditLogger.info(beatId ? 'Officer assigned to beat' : 'Officer unassigned from beat', {
                 officerId: officer.id,
                 officerName: officer.name,
-                beatId,
-                beatName: beat.name,
+                beatId: beatId || 'Unassigned',
+                beatName: beat?.name || 'Unassigned',
                 assignedBy: req.user?.email,
                 timestamp: new Date().toISOString()
             });
@@ -316,7 +325,7 @@ export class OfficerController {
             res.json({
                 success: true,
                 data: { officer },
-                message: 'Officer assigned to beat successfully'
+                message: beatId ? 'Officer assigned to beat successfully' : 'Officer unassigned successfully'
             });
         } catch (error) {
             next(error);
@@ -485,7 +494,7 @@ export class OfficerController {
                         officerId: id,
                         fromBeatId: officer.beatId!,
                         toBeatId: newBeatId,
-                        fromPoliceStationId: officer.policeStationId,
+                        fromPoliceStationId: officer.policeStationId || '',
                         toPoliceStationId: newPoliceStationId,
                         effectiveDate: new Date(effectiveDate),
                         reason,

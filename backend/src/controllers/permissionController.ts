@@ -108,20 +108,12 @@ export class PermissionController {
       const user = await prisma.user.findUnique({
         where: { id: req.user.id },
         include: {
-          beatOfficer: {
+          officerProfile: {
             include: {
               user: {
                 include: {
-                  role: {
-                    include: {
-                      permissions: {
-                        include: {
-                          category: true,
-                          children: true
-                        }
-                      }
-                    }
-                  }
+                  // Role is a string field, not a relation, so we cannot include it here.
+                  // Permissions are fetched separately below.
                 }
               }
             }

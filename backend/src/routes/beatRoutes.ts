@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { BeatController } from '../controllers/beatController';
 import { authenticate } from '../middleware/authenticate';
 import { requirePermission } from '../middleware/authorize';
+import { dataScopeMiddleware } from '../middleware/dataScopeMiddleware';
 import { Permission } from '../types/auth';
 import { body, query } from 'express-validator';
 import { validate } from '../middleware/validate';
@@ -12,6 +13,7 @@ const router = Router();
 
 // All routes require authentication
 router.use(authenticate);
+router.use(dataScopeMiddleware);
 
 /**
  * @swagger

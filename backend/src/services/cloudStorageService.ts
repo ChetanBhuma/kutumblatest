@@ -150,7 +150,7 @@ class CloudStorageService {
             url = '/' + url;
         }
 
-        console.log(`DEBUG: Local Storage URL conversion: ${filePath} -> ${url}`);
+
         return url;
     }
 

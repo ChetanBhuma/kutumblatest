@@ -35,12 +35,15 @@ export class CitizenProfileController {
             NAME: 'Unknown'
         };
 
-        // Relaxed check to unblock user loop.
-        // As long as Name and DOB are present, let them through to dashboard.
+        // Stricter check to ensure critical fields are actually filled.
+        // This ensures the Dashboard Modal appears if the user has only done OTP verification
+        // but hasn't successfully submitted the details form.
         return !!(
-            citizen.fullName &&
-            citizen.fullName !== PLACEHOLDERS.NAME &&
-            citizen.dateOfBirth
+            citizen.fullName && citizen.fullName !== PLACEHOLDERS.NAME &&
+            citizen.dateOfBirth &&
+            citizen.gender && citizen.gender !== PLACEHOLDERS.GENDER &&
+            citizen.permanentAddress && citizen.permanentAddress !== PLACEHOLDERS.ADDRESS &&
+            citizen.pinCode && citizen.pinCode !== PLACEHOLDERS.PINCODE
         );
     }
 
@@ -294,9 +297,6 @@ export class CitizenProfileController {
                 updates.age = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
             }
 
-            // 1. Prepare variable for post-transaction action
-            let verificationPayload: any = null;
-
             // Execute in transaction
             const citizen = await db.$transaction(async (tx: any) => {
                 // 1. Fetch current state BEFORE update to check for changes
@@ -341,18 +341,8 @@ export class CitizenProfileController {
                     data: updates
                 });
 
-                // 2.1 Prepare Verification Request if address changed (EXECUTE AFTER TX)
-                if (isAddressChanged) {
-                    verificationPayload = {
-                        entityType: 'SeniorCitizen',
-                        entityId: citizenId,
-                        seniorCitizenId: citizenId,
-                        requestedBy: citizenId, // Self-triggered
-                        priority: 'High',
-                        remarks: `Auto-triggered by Address/Police Station Change. Address changed from [${oldCitizen?.permanentAddress}] to [${updates.permanentAddress || oldCitizen?.permanentAddress}]`,
-                        documents: [],
-                    };
-                }
+                // NOTE: VerificationRequest is already created during initial registration
+                // No need to create another one here during profile update
 
                 // 3. Handle Emergency Contacts
                 if (Array.isArray(emergencyContacts)) {
@@ -502,14 +492,7 @@ export class CitizenProfileController {
             // 6. Sync with CitizenRegistration & Auth
             await CitizenProfileController.syncCitizenStatus(citizenId, citizen);
 
-            // POST-TRANSACTION: Trigger Verification Request
-            if (verificationPayload) {
-                try {
-                    await VerificationService.createVerificationRequest(verificationPayload);
-                } catch (vErr) {
-                    console.error('Failed to auto-trigger verification request:', vErr);
-                }
-            }
+            // NOTE: VerificationRequest creation removed - already handled during initial registration
 
             // Special handling if mobile number was updated
             if (updates.mobileNumber) {
@@ -600,7 +583,8 @@ export class CitizenProfileController {
                 orderBy: { scheduledDate: 'desc' }
             });
 
-            const requests = await db.visitRequest.findMany({
+// 1. Fetch legacy VisitRequests
+            const visitRequests = await db.visitRequest.findMany({
                 where: {
                     seniorCitizenId: citizenId,
                     status: 'Pending'
@@ -608,17 +592,41 @@ export class CitizenProfileController {
                 orderBy: { createdAt: 'desc' }
             });
 
-            const requestVisits = requests.map((r: any) => ({
+            // 2. Fetch new VerificationRequests (Pending/InProgress)
+            const verificationRequests = await db.verificationRequest.findMany({
+                where: {
+                    seniorCitizenId: citizenId,
+                    status: { in: ['PENDING', 'IN_PROGRESS'] }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+
+            // 3. Map legacy requests
+            const mappedVisitRequests = visitRequests.map((r: any) => ({
                 id: r.id,
                 visitType: r.visitType || 'Request',
                 scheduledDate: r.preferredDate,
                 createdAt: r.createdAt,
-                status: r.status,
+                status: r.status, // e.g. Pending (PascalCase)
                 officer: null,
                 isRequest: true
             }));
 
-            const allVisits = [...requestVisits, ...visits].sort((a: any, b: any) => {
+            // 4. Map new verification requests to same format
+            const mappedVerificationRequests = verificationRequests.map((r: any) => ({
+                id: r.id,
+                visitType: 'Verification',
+                scheduledDate: r.createdAt, // Use creation date as preferred date fallback
+                createdAt: r.createdAt,
+                status: r.status === 'IN_PROGRESS' ? 'Pending' : 'Pending', // Map to PascalCase 'Pending' for UI consistency
+                officer: r.assignedTo ? { id: r.assignedTo, name: 'Assigned Officer' } : null,
+                isRequest: true,
+                isVerification: true
+            }));
+
+            const allRequests = [...mappedVerificationRequests, ...mappedVisitRequests];
+
+            const allVisits = [...allRequests, ...visits].sort((a: any, b: any) => {
                 const dateA = new Date(a.scheduledDate || a.createdAt).getTime();
                 const dateB = new Date(b.scheduledDate || b.createdAt).getTime();
                 return dateB - dateA;

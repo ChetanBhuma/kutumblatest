@@ -20,7 +20,7 @@ export interface PaginationResult<T> {
 /**
  * Reusable pagination utility for Prisma queries
  * Eliminates repeated pagination logic in 15+ controllers
- * 
+ *
  * @example
  * const result = await paginatedQuery(prisma.seniorCitizen, {
  *   page: 1,
@@ -47,7 +47,7 @@ export async function paginatedQuery<T>(
     const rawPage = Number(page);
     const rawLimit = Number(limit);
     const currentPage = isNaN(rawPage) ? 1 : Math.max(1, rawPage);
-    const pageSize = isNaN(rawLimit) ? 20 : Math.max(1, Math.min(100, rawLimit));
+    const pageSize = isNaN(rawLimit) ? 20 : Math.max(1, Math.min(2000, rawLimit));
     const skip = (currentPage - 1) * pageSize;
 
     // Execute count and find queries in parallel
@@ -78,13 +78,13 @@ export async function paginatedQuery<T>(
 
 /**
  * Extract pagination parameters from request query
- * 
+ *
  * @example
  * const { page, limit } = extractPaginationParams(req.query);
  */
 export function extractPaginationParams(query: any): { page: number; limit: number } {
     const page = Math.max(1, Number(query.page) || 1);
-    const limit = Math.max(1, Math.min(100, Number(query.limit) || 20));
+    const limit = Math.max(1, Math.min(2000, Number(query.limit) || 20));
 
     return { page, limit };
 }
@@ -92,9 +92,9 @@ export function extractPaginationParams(query: any): { page: number; limit: numb
 /**
  * Build where clause from query parameters
  * Handles common filter patterns
- * 
+ *
  * Note: For more advanced query building, see queryBuilder.ts
- * 
+ *
  * @example
  * const where = buildWhereClause(req.query, {
  *   searchFields: ['fullName', 'mobileNumber'],

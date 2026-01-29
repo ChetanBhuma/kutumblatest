@@ -62,13 +62,13 @@ export const getSubDivisions = async (req: Request, res: Response) => {
             citizenCount: sd._count.SeniorCitizen,
         }));
 
-        res.json({
+        return res.json({
             success: true,
             data: response,
         });
     } catch (error) {
         console.error('Error fetching sub-divisions:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to fetch sub-divisions',
         });
@@ -104,7 +104,7 @@ export const getSubDivisionById = async (req: Request, res: Response) => {
             });
         }
 
-        res.json({
+        return res.json({
             success: true,
             data: {
                 ...subDivision,
@@ -116,7 +116,7 @@ export const getSubDivisionById = async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error('Error fetching sub-division:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to fetch sub-division',
         });
@@ -172,7 +172,7 @@ export const createSubDivision = async (req: Request, res: Response) => {
             },
         });
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             data: {
                 ...subDivision,
@@ -183,7 +183,7 @@ export const createSubDivision = async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error('Error creating sub-division:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to create sub-division',
         });
@@ -256,7 +256,7 @@ export const updateSubDivision = async (req: Request, res: Response) => {
             },
         });
 
-        res.json({
+        return res.json({
             success: true,
             data: {
                 ...subDivision,
@@ -267,7 +267,7 @@ export const updateSubDivision = async (req: Request, res: Response) => {
         });
     } catch (error) {
         console.error('Error updating sub-division:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to update sub-division',
         });
@@ -318,13 +318,13 @@ export const deleteSubDivision = async (req: Request, res: Response) => {
             where: { id },
         });
 
-        res.json({
+        return res.json({
             success: true,
             message: 'Sub-division deleted successfully',
         });
     } catch (error) {
         console.error('Error deleting sub-division:', error);
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: 'Failed to delete sub-division',
         });

@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { VisitController } from '../controllers/visitController';
 import { authenticate } from '../middleware/authenticate';
-import { requirePermission, requireRole } from '../middleware/authorize';
+import { requirePermission, requireRole, requireAnyPermission } from '../middleware/authorize';
 import { Permission, Role } from '../types/auth';
 import { body, query } from 'express-validator';
 import { validate } from '../middleware/validate';
@@ -28,7 +28,7 @@ router.use(authenticate);
  */
 router.get(
     '/officer/assignments',
-    requireRole(Role.OFFICER),
+    requireAnyPermission([Permission.VISITS_READ, Permission.VISITS_COMPLETE]),
     asyncHandler(VisitController.getOfficerAssignments)
 );
 
@@ -348,7 +348,7 @@ router.post(
  */
 router.post(
     '/:id/start',
-    requireRole([Role.OFFICER, Role.ADMIN, Role.SUPER_ADMIN]),
+    requireAnyPermission([Permission.VISITS_COMPLETE, Permission.VISITS_SCHEDULE]),
     [
         ValidationRules.id('id'),
         ValidationRules.latitude(),
@@ -357,6 +357,7 @@ router.post(
     ],
     asyncHandler(VisitController.startVisit)
 );
+
 
 /**
  * @swagger
@@ -392,7 +393,7 @@ router.post(
  */
 router.post(
     '/:id/officer-complete',
-    requireRole(Role.OFFICER),
+    requirePermission(Permission.VISITS_COMPLETE),
     [
         ValidationRules.id('id'),
         body('notes').optional().trim(),

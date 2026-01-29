@@ -18,8 +18,8 @@ export const handleLeaveReassignment = async (officerId: string, leaveStartDate:
                 }
             },
             include: {
-                Citizen: true,
-                Officer: {
+                SeniorCitizen: true,
+                officer: {
                     include: {
                         Beat: true
                     }
@@ -34,13 +34,13 @@ export const handleLeaveReassignment = async (officerId: string, leaveStartDate:
         // Find backup officer in the same beat
         const backupOfficer = await prisma.beatOfficer.findFirst({
             where: {
-                beatId: affectedVisits[0].Officer.beatId,
+                beatId: affectedVisits[0].officer.beatId,
                 isActive: true,
                 id: { not: officerId },
                 // Not on leave during this period
                 Leave: {
                     none: {
-                        status: 'APPROVED',
+                        status: 'Approved',
                         startDate: { lte: leaveEndDate },
                         endDate: { gte: leaveStartDate }
                     }
@@ -51,7 +51,7 @@ export const handleLeaveReassignment = async (officerId: string, leaveStartDate:
         if (!backupOfficer) {
             auditLogger.warn('No backup officer available for reassignment', {
                 officerId,
-                beatId: affectedVisits[0].Officer.beatId,
+                beatId: affectedVisits[0].officer.beatId,
                 affectedVisits: affectedVisits.length
             });
             return { reassignedCount: 0, error: 'No backup officer available' };
@@ -64,7 +64,7 @@ export const handleLeaveReassignment = async (officerId: string, leaveStartDate:
             },
             data: {
                 officerId: backupOfficer.id,
-                remarks: 'Reassigned due to officer leave'
+                notes: 'Reassigned due to officer leave'
             }
         });
 

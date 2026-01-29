@@ -74,16 +74,31 @@ export const createVerificationRequest = async (data: CreateVerificationRequestD
 
         if (citizen && citizen.policeStationId) {
             // 1. Get all active officers at the police station
+            // IMPORTANT: Only assign to officers who are explicitly mapped to this police station AND have a beat assignment
             const officers = await prisma.beatOfficer.findMany({
                 where: {
-                    policeStationId: citizen.policeStationId,
-                    isActive: true
+                    policeStationId: citizen.policeStationId, // Must match citizen's police station
+                    isActive: true,
+                    // Exclude officers without a police station assignment (higher-rank officers)
+                    NOT: {
+                        OR: [
+                            { policeStationId: null },
+                            { beatId: null }  // NEW: Only officers with beat assignments
+                        ]
+                    }
                 },
-                select: { id: true, name: true, beatId: true, badgeNumber: true }
+                select: { id: true, name: true, beatId: true, badgeNumber: true, policeStationId: true }
             });
 
             if (officers.length === 0) {
-                console.log(`No officers found for auto-assignment in Station: ${citizen.policeStationId}`);
+                auditLogger.warn('Auto-assignment skipped: No active beat officers found at police station', {
+                    requestId: request.id,
+                    citizenId: citizen.id,
+                    citizenName: citizen.fullName,
+                    policeStationId: citizen.policeStationId,
+                    beatId: citizen.beatId,
+                    reason: 'NO_ACTIVE_BEAT_OFFICERS_AT_STATION'
+                });
                 return request;
             }
 
@@ -114,7 +129,7 @@ export const createVerificationRequest = async (data: CreateVerificationRequestD
                     selectedOfficer = beatOfficers.reduce((min, officer) =>
                         officer.workload < min.workload ? officer : min
                     );
-                    console.log(`Selected beat officer ${selectedOfficer.name} (${selectedOfficer.badgeNumber}) with workload: ${selectedOfficer.workload} visits`);
+
                 }
             }
 
@@ -123,7 +138,7 @@ export const createVerificationRequest = async (data: CreateVerificationRequestD
                 selectedOfficer = officersWithWorkload.reduce((min, officer) =>
                     officer.workload < min.workload ? officer : min
                 );
-                console.log(`Selected station officer ${selectedOfficer.name} (${selectedOfficer.badgeNumber}) with workload: ${selectedOfficer.workload} visits`);
+
             }
 
             // 4. Assign to selected officer
@@ -173,7 +188,7 @@ export const assignVerificationRequest = async (requestId: string, officerId: st
                 data: {
                     seniorCitizenId: citizen.id,
                     officerId: officerId,
-                    policeStationId: officer.policeStationId, // Use officer's station as source of truth for the visit context
+                    policeStationId: officer.policeStationId || '', // Use officer's station as source of truth for the visit context
                     beatId: officer.beatId || citizen.beatId,
                     visitType: 'Verification',
                     status: 'SCHEDULED',

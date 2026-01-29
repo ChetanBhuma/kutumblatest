@@ -71,7 +71,7 @@ app.use(compression());
 
 // Logging middleware
 if (config.env !== 'test') {
-    app.use(morgan('combined', { stream: { write: (message) => logger.info(message.trim()) } }));
+    app.use(morgan('combined', { stream: { write: (message: string) => logger.info(message.trim()) } }));
 }
 
 // Health check
@@ -92,11 +92,13 @@ app.use('/uploads', (req, res, next) => {
             return;
         }
 
-        // Allow if authorized via Bearer token (Frontend Blob Fetch)
+        // Allow if authorized via Bearer token (Frontend Blob Fetch) OR via cookie
         const authHeader = req.headers.authorization;
-        console.log(`[Uploads Middleware] Path: ${req.path}, Method: ${req.method}, AuthHeader Present: ${!!authHeader}`); // DEBUG
+        const authCookie = req.cookies?.token; // Check for auth token in cookies
 
-        if (authHeader && authHeader.startsWith('Bearer ')) {
+        console.log(`[Uploads Middleware] Path: ${req.path}, Method: ${req.method}, AuthHeader Present: ${!!authHeader}, Cookie Present: ${!!authCookie}`); // DEBUG
+
+        if ((authHeader && authHeader.startsWith('Bearer ')) || authCookie) {
             // We assume basic validity check is enough for static resource assumption here,
             // or we could decode it. For performance in this middleware, existence is a good first step,
             // but ideally we should verify it.

@@ -96,6 +96,15 @@ export class VisitController {
                 query.seniorCitizenId = query.citizenId;
             }
 
+            // Normalize status and visitType to match DB Enums/Formats
+            if (query.status && typeof query.status === 'string') {
+                // Convert "In Progress" -> "IN_PROGRESS", "Scheduled" -> "SCHEDULED"
+                query.status = query.status.toUpperCase().replace(/\s+/g, '_');
+            }
+            // visitType seems to be Title Case in DB (Routine, Emergency), so we might not need to uppercase it entirely,
+            // but let's ensure it matches what the frontend sends or what the DB expects.
+            // Based on previous files, visitType is Title Case. Status is UPPERCASE Enum.
+
             const where = buildWhereClause(query, {
                 exactMatchFields: [
                     'status',
@@ -252,6 +261,7 @@ export class VisitController {
             const visit = await prisma.visit.create({
                 data: {
                     ...visitData,
+                    scheduledDate: new Date(visitData.scheduledDate),
                     policeStationId: officer.policeStationId,
                     beatId: officer.beatId || citizen.beatId
                 },
@@ -652,7 +662,7 @@ export class VisitController {
                     data: {
                         seniorCitizenId: citizen.id,
                         officerId: officer.id,
-                        policeStationId: officer.policeStationId,
+                        policeStationId: officer.policeStationId || '',
                         beatId: officer.beatId || citizen.beatId,
                         scheduledDate: new Date(currentDate),
                         status: 'SCHEDULED',
@@ -716,6 +726,11 @@ export class VisitController {
 
             if (updateData.status) {
                 validateTransition('VISIT', visit.status, updateData.status);
+            }
+
+            // Ensure scheduledDate is a Date object if provided
+            if (updateData.scheduledDate) {
+                updateData.scheduledDate = new Date(updateData.scheduledDate);
             }
 
             // Check for conflicts if rescheduling (and not emergency)

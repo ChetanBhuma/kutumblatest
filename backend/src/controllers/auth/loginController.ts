@@ -3,6 +3,7 @@ import { prisma } from '../../config/database';
 import { TokenService } from '../../services/tokenService';
 import { PasswordService } from '../../services/passwordService';
 import { redisService } from '../../services/redisService';
+import { AuditService } from '../../services/AuditService';
 import { AppError } from '../../middleware/errorHandler';
 import { auditLogger } from '../../config/logger';
 import { Role } from '../../types/auth';
@@ -78,13 +79,20 @@ export class LoginController {
             });
 
             // Log successful login
-            auditLogger.info('User logged in', {
-                userId: user.id,
-                email: user.email,
-                role: resolvedRole,
-                ip: req.ip,
-                userAgent: req.get('user-agent')
-            });
+            await AuditService.log(
+                user.id,
+                'LOGIN',
+                'User',
+                user.id,
+                {
+                    message: 'User logged in',
+                    role: resolvedRole,
+                    category: 'authentication',
+                    status: 'success'
+                },
+                req.ip || '0.0.0.0',
+                req.get('user-agent') || 'Unknown'
+            );
 
             // Fetch dynamic permissions
             let dynamicPermissions: string[] = [];

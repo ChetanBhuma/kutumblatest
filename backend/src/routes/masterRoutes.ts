@@ -421,7 +421,10 @@ router.delete('/sub-divisions/:id', requireRole([Role.SUPER_ADMIN]), deleteSubDi
 // ============================================
 // BEAT ROUTES (Admin ops)
 // ============================================
-router.get('/beats', beatController.list);
+// Apply Data Scope Middleware for listing beats to ensure Roster page is scoped
+import { dataScopeMiddleware } from '../middleware/dataScopeMiddleware';
+
+router.get('/beats', dataScopeMiddleware, beatController.list);
 router.get('/beats/:id', beatController.getById);
 router.post('/beats', requireRole([Role.SUPER_ADMIN, Role.ADMIN]), beatController.create);
 router.put('/beats/:id', requireRole([Role.SUPER_ADMIN, Role.ADMIN]), beatController.update);

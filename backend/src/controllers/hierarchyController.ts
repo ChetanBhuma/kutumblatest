@@ -30,7 +30,7 @@ export const getHierarchyTree = async (_req: Request, res: Response) => {
         const rangeMap = new Map<string, any>();
 
         for (const district of districts) {
-            const rangeName = district.range; // Assuming 'range' is a string field
+            const rangeName = district.range || 'Unknown'; // Handle null range
             const rangeCode = rangeName.toUpperCase().substring(0, 3); // Simple code gen
             const rangeId = `range-${rangeName.replace(/\s+/g, '-').toLowerCase()}`;
 

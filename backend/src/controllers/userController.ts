@@ -3,6 +3,12 @@ import prisma from '../config/prisma';
 import { PasswordService } from '../services/passwordService';
 import { paginatedQuery } from '../utils/pagination';
 import { buildOrderBy } from '../utils/queryBuilder';
+import { AuditService } from '../services/AuditService';
+
+// Define a minimal AuthRequest interface here or import it
+interface AuthRequest extends Request {
+    user?: { id: string; email: string; role: string };
+}
 
 export const listUsers = async (req: Request, res: Response) => {
     try {
@@ -119,6 +125,7 @@ export const updateUserRole = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { roleCode } = req.body;
+        const currentUser = (req as AuthRequest).user;
 
         if (!roleCode) {
             return res.status(400).json({
@@ -153,6 +160,16 @@ export const updateUserRole = async (req: Request, res: Response) => {
             },
         });
 
+        await AuditService.log(
+            currentUser?.id || 'SYSTEM',
+            'UPDATE_USER_ROLE',
+            'User',
+            id,
+            { oldRole: user.role, newRole: roleCode },
+            req.ip || '0.0.0.0',
+            req.get('user-agent') || 'Unknown'
+        );
+
         return res.json({
             success: true,
             data: user,
@@ -171,6 +188,7 @@ export const updateUserStatus = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { isActive } = req.body;
+        const currentUser = (req as AuthRequest).user;
 
         if (typeof isActive !== 'boolean') {
             return res.status(400).json({
@@ -183,6 +201,16 @@ export const updateUserStatus = async (req: Request, res: Response) => {
             where: { id },
             data: { isActive },
         });
+
+        await AuditService.log(
+            currentUser?.id || 'SYSTEM',
+            'UPDATE_USER_STATUS',
+            'User',
+            id,
+            { status: isActive ? 'Active' : 'Inactive' },
+            req.ip || '0.0.0.0',
+            req.get('user-agent') || 'Unknown'
+        );
 
         return res.json({
             success: true,
@@ -202,6 +230,7 @@ export const updateUser = async (req: Request, res: Response) => {
     try {
         const { id } = req.params;
         const { email, phone } = req.body;
+        const currentUser = (req as AuthRequest).user;
 
         const existing = await prisma.user.findUnique({
             where: { id },
@@ -241,6 +270,16 @@ export const updateUser = async (req: Request, res: Response) => {
             return user;
         });
 
+        await AuditService.log(
+            currentUser?.id || 'SYSTEM',
+            'UPDATE_USER',
+            'User',
+            id,
+            { email, phone },
+            req.ip || '0.0.0.0',
+            req.get('user-agent') || 'Unknown'
+        );
+
         return res.json({
             success: true,
             data: updatedUser,
@@ -258,6 +297,7 @@ export const updateUser = async (req: Request, res: Response) => {
 export const createUser = async (req: Request, res: Response) => {
     try {
         const { email, phone, password, roleCode, name, badgeNumber, jurisdiction } = req.body;
+        const currentUser = (req as AuthRequest).user;
 
         if (!email || !phone || !roleCode) {
             return res.status(400).json({
@@ -375,6 +415,16 @@ export const createUser = async (req: Request, res: Response) => {
 
             return { user, officer: null };
         });
+
+        await AuditService.log(
+            currentUser?.id || 'SYSTEM',
+            'CREATE_USER',
+            'User',
+            result.user.id,
+            { email, role: roleCode },
+            req.ip || '0.0.0.0',
+            req.get('user-agent') || 'Unknown'
+        );
 
         return res.status(201).json({
             success: true,

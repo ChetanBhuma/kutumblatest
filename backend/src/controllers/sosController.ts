@@ -111,8 +111,8 @@ export class SOSController {
                     data: {
                         seniorCitizenId: citizen.id,
                         officerId: assignedOfficer.id,
-                        policeStationId: assignedOfficer.policeStationId,
-                        beatId: assignedOfficer.beatId,
+                        policeStationId: assignedOfficer.policeStationId || '', // Required field
+                        beatId: assignedOfficer.beatId || undefined,
                         scheduledDate: new Date(),
                         status: 'SCHEDULED', // FIX: Changed from IN_PROGRESS to SCHEDULED
                         visitType: 'Emergency'

@@ -12,8 +12,9 @@ export const registerEventListeners = () => {
             auditLogger.info('Event: Citizen registered', payload);
 
             // Send welcome notification
-            await NotificationService.sendWelcome(
+            await NotificationService.sendRegistrationConfirmation(
                 payload.mobileNumber,
+                null,
                 payload.fullName
             ).catch(err => auditLogger.error('Failed to send welcome notification', err));
 

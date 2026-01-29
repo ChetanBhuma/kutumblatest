@@ -250,7 +250,7 @@ router.post(
     auditAction({ action: 'ASSIGN_BEAT', resource: 'officer', includeRequestBody: true }),
     [
         ValidationRules.id('id'),
-        body('beatId').notEmpty().withMessage('Beat ID is required'),
+        body('beatId').optional({ nullable: true }), // Allow null/undefined for unassignment
         validate
     ],
     asyncHandler(OfficerController.assignToBeat)

@@ -40,16 +40,42 @@ export class BeatController {
             // Apply Data Scope
             const scope = (req as any).dataScope;
             if (scope && scope.level !== 'ALL') {
-                if (scope.level === 'RANGE' && scope.jurisdictionIds.rangeId) {
-                    where.rangeId = scope.jurisdictionIds.rangeId;
-                } else if (scope.level === 'DISTRICT' && scope.jurisdictionIds.districtId) {
-                    where.districtId = scope.jurisdictionIds.districtId;
-                } else if (scope.level === 'SUBDIVISION' && scope.jurisdictionIds.subDivisionId) {
-                    where.subDivisionId = scope.jurisdictionIds.subDivisionId;
-                } else if (scope.level === 'POLICE_STATION' && scope.jurisdictionIds.policeStationId) {
-                    where.policeStationId = scope.jurisdictionIds.policeStationId;
-                } else if (scope.level === 'BEAT' && scope.jurisdictionIds.beatId) {
-                    where.id = scope.jurisdictionIds.beatId;
+                let scoped = false;
+
+                if (scope.level === 'RANGE') {
+                    if (scope.jurisdictionIds.rangeId) {
+                        where.rangeId = scope.jurisdictionIds.rangeId;
+                        scoped = true;
+                    }
+                } else if (scope.level === 'DISTRICT') {
+                    if (scope.jurisdictionIds.districtId) {
+                        where.districtId = scope.jurisdictionIds.districtId;
+                        scoped = true;
+                    }
+                } else if (scope.level === 'SUBDIVISION') {
+                    if (scope.jurisdictionIds.subDivisionId) {
+                        where.subDivisionId = scope.jurisdictionIds.subDivisionId;
+                        scoped = true;
+                    }
+                } else if (scope.level === 'POLICE_STATION') {
+                    if (scope.jurisdictionIds.policeStationId) {
+                        where.policeStationId = scope.jurisdictionIds.policeStationId;
+                        scoped = true;
+                    }
+                } else if (scope.level === 'BEAT') {
+                    if (scope.jurisdictionIds.beatId) {
+                        where.id = scope.jurisdictionIds.beatId;
+                        scoped = true;
+                    }
+                }
+
+                // SECURITY: If scope is restricted but we couldn't apply a filter (e.g., missing profile ID),
+                // we MUST return empty result instead of leaking all data.
+                if (!scoped) {
+                    return res.json({
+                        success: true,
+                        data: [],
+                    });
                 }
             }
 
