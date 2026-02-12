@@ -1,18 +1,19 @@
 {
     "version": 2,
+    "buildCommand": "npm run build",
     "builds": [
         {
-            "src": "dist/server.js",
-            "use": "@vercel/node"
+            "src": "api/index.ts",
+            "use": "@vercel/node",
+            "config": {
+                "includeFiles": ["prisma/schema.prisma", "node_modules/.prisma/**"]
+            }
         }
     ],
     "routes": [
         {
             "src": "/(.*)",
-            "dest": "dist/server.js"
+            "dest": "api/index.ts"
         }
-    ],
-    "buildCommand": "npm install && npx prisma generate && npx tsc",
-    "outputDirectory": "dist",
-    "installCommand": "npm install --include=dev"
+    ]
 }

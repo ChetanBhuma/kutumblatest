@@ -359,15 +359,6 @@ export class CitizenController {
                 delete mainData[field];
             });
 
-            console.log('[updateProfile] Citizen ID:', id);
-            console.log('[updateProfile] Fields to update:', Object.keys(mainData));
-            console.log('[updateProfile] Sample values:', {
-                rangeId: mainData.rangeId,
-                districtId: mainData.districtId,
-                yearOfRetirement: mainData.yearOfRetirement,
-                pincode: mainData.pincode,
-                pinCode: mainData.pinCode
-            });
 
             // Update citizen
             let citizen;
