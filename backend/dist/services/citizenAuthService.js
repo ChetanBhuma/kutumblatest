@@ -24,9 +24,6 @@ exports.generateOTP = generateOTP;
 const sendOTP = async (mobileNumber, otp) => {
     try {
         // TODO: Replace with actual SMS gateway integration
-        if (process.env.NODE_ENV !== 'production') {
-            console.log(`[OTP Service] Sending OTP ${otp} to ${mobileNumber}`);
-        }
         // Simulated SMS sending
         // In production, use:
         // await twilioClient.messages.create({
@@ -141,11 +138,6 @@ const requestOTP = async (mobileNumber, requireRegistered = false) => {
         }
         // Generate and save OTP
         const otp = (0, exports.generateOTP)();
-        console.log('\n' + '='.repeat(60));
-        console.log(`🔐 OTP GENERATED FOR CITIZEN LOGIN`);
-        console.log(`📱 Mobile: ${mobileNumber}`);
-        console.log(`⏰ Expires: ${new Date(Date.now() + 10 * 60 * 1000).toLocaleTimeString()}`);
-        console.log('='.repeat(60) + '\n');
         const expiresAt = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
         // For requestOTP, if we are creating a new record, use normalized +91 format if it looks like a 10 digit Indian number
         if (/^\d{10}$/.test(mobileNumber)) {
@@ -233,7 +225,6 @@ const verifyOTP = async (mobileNumber, otp) => {
             }
         });
         if (!auth || !auth.otpCode || !auth.otpExpiresAt) {
-            console.log(`[VerifyOTP] Failed: No OTP found for ${mobileNumber}. Auth exists: ${!!auth}, OTP exists: ${!!auth?.otpCode}`);
             return {
                 success: false,
                 message: 'No OTP found. Please request a new one.'
@@ -241,7 +232,6 @@ const verifyOTP = async (mobileNumber, otp) => {
         }
         // Check expiry
         if (new Date() > auth.otpExpiresAt) {
-            console.log(`[VerifyOTP] Failed: OTP expired for ${mobileNumber}. Expires: ${auth.otpExpiresAt}, Now: ${new Date()}`);
             return {
                 success: false,
                 message: 'OTP has expired. Please request a new one.'
@@ -250,7 +240,6 @@ const verifyOTP = async (mobileNumber, otp) => {
         // Check verification attempts to prevent brute force
         const MAX_VERIFICATION_ATTEMPTS = 3;
         if (auth.otpVerificationAttempts >= MAX_VERIFICATION_ATTEMPTS) {
-            console.log(`[VerifyOTP] Failed: Max verification attempts reached for ${mobileNumber}`);
             // Clear OTP to force new request
             await db.citizenAuth.update({
                 where: { mobileNumber },
@@ -267,7 +256,6 @@ const verifyOTP = async (mobileNumber, otp) => {
         }
         // Verify OTP
         if (auth.otpCode !== otp) {
-            console.log(`[VerifyOTP] Failed: Invalid OTP for ${mobileNumber}. Expected: ${auth.otpCode}, Received: ${otp}`);
             // Increment verification attempts
             await db.citizenAuth.update({
                 where: { mobileNumber },
@@ -397,7 +385,6 @@ exports.registerCitizen = registerCitizen;
  */
 const loginCitizen = async (mobileNumber, password, ipAddress) => {
     try {
-        console.log(`[LoginDebug] Attempting login for: ${mobileNumber}`);
         let auth = await db.citizenAuth.findUnique({
             where: { mobileNumber },
             include: {
@@ -411,11 +398,9 @@ const loginCitizen = async (mobileNumber, password, ipAddress) => {
         });
         // Fallback: If not found, try alternative formats
         if (!auth) {
-            console.log(`[LoginDebug] Not found with ${mobileNumber}. Trying alternatives.`);
             // If has +91, try without
             if (mobileNumber.startsWith('+91')) {
                 const alt = mobileNumber.slice(3);
-                console.log(`[LoginDebug] Trying ${alt}`);
                 auth = await db.citizenAuth.findUnique({
                     where: { mobileNumber: alt },
                     include: { citizen: { select: { id: true, fullName: true } } }
@@ -424,7 +409,6 @@ const loginCitizen = async (mobileNumber, password, ipAddress) => {
             // If 10 digits, try with +91
             else if (/^\d{10}$/.test(mobileNumber)) {
                 const alt = `+91${mobileNumber}`;
-                console.log(`[LoginDebug] Trying ${alt}`);
                 auth = await db.citizenAuth.findUnique({
                     where: { mobileNumber: alt },
                     include: { citizen: { select: { id: true, fullName: true } } }
@@ -432,13 +416,11 @@ const loginCitizen = async (mobileNumber, password, ipAddress) => {
             }
         }
         if (!auth) {
-            console.log(`[LoginDebug] User not found after all attempts.`);
             return {
                 success: false,
                 message: 'Account not found'
             };
         }
-        console.log(`[LoginDebug] User found: ${auth.mobileNumber}, Locked: ${auth.lockedUntil}`);
         // Check if account is locked
         if (auth.lockedUntil && new Date() < auth.lockedUntil) {
             return {
@@ -448,7 +430,6 @@ const loginCitizen = async (mobileNumber, password, ipAddress) => {
         }
         // Verify password
         const isValid = await bcryptjs_1.default.compare(password, auth.password);
-        console.log(`[LoginDebug] Password valid: ${isValid}`);
         if (!isValid) {
             // Increment login attempts
             const attempts = auth.loginAttempts + 1;

@@ -320,45 +320,97 @@ class CitizenController {
             }
             // Extract nested data
             const { familyMembers, emergencyContacts, householdHelp, spouseDetails, medicalHistory, ...mainData } = updates;
-            // Update citizen
-            const citizen = await database_1.prisma.seniorCitizen.update({
-                where: { id },
-                data: {
-                    ...mainData,
-                    submissionType: 'Update',
-                    updatedBy: req.user?.email,
-                    SpouseDetails: spouseDetails ? {
-                        upsert: {
-                            create: spouseDetails,
-                            update: spouseDetails
-                        }
-                    } : undefined,
-                    MedicalHistory: medicalHistory ? {
-                        deleteMany: {},
-                        create: medicalHistory
-                    } : undefined,
-                    // Replace one-to-many relations
-                    FamilyMember: familyMembers ? {
-                        deleteMany: {},
-                        create: familyMembers
-                    } : undefined,
-                    EmergencyContact: emergencyContacts ? {
-                        deleteMany: {},
-                        create: emergencyContacts
-                    } : undefined,
-                    HouseholdHelp: householdHelp ? {
-                        deleteMany: {},
-                        create: householdHelp
-                    } : undefined
-                },
-                include: {
-                    FamilyMember: true,
-                    EmergencyContact: true,
-                    HouseholdHelp: true,
-                    SpouseDetails: true,
-                    MedicalHistory: true
+            // Sanitize data types - convert strings to proper types
+            if (mainData.yearOfRetirement !== undefined && mainData.yearOfRetirement !== null) {
+                mainData.yearOfRetirement = mainData.yearOfRetirement === '' ? null : parseInt(String(mainData.yearOfRetirement), 10);
+            }
+            if (mainData.numberOfChildren !== undefined && mainData.numberOfChildren !== null) {
+                mainData.numberOfChildren = mainData.numberOfChildren === '' ? 0 : parseInt(String(mainData.numberOfChildren), 10);
+            }
+            if (mainData.vulnerabilityScore !== undefined && mainData.vulnerabilityScore !== null) {
+                mainData.vulnerabilityScore = mainData.vulnerabilityScore === '' ? null : parseInt(String(mainData.vulnerabilityScore), 10);
+            }
+            // Convert boolean fields that might come as strings
+            const booleanFields = [
+                'consentToNotifyFamily', 'consentShareHealth', 'registeredOnApp', 'consentNotifications',
+                'digitalCardIssued', 'consentServiceRequest', 'consentDataUse', 'aadhaarVerified',
+                'allowDataExport', 'allowDataShareWithFamily', 'allowFamilyNotification', 'allowNotifications',
+                'consentScheduledVisitReminder', 'isMobileRegistered', 'isSoftDeleted', 'physicalDisability',
+                'isActive'
+            ];
+            booleanFields.forEach(field => {
+                if (mainData[field] !== undefined) {
+                    mainData[field] = mainData[field] === 'true' || mainData[field] === true;
                 }
             });
+            // Remove fields that should not be directly updated (relations, computed, etc.)
+            const fieldsToRemove = [
+                // Relation objects (these are read-only, use ID fields instead)
+                'LivingArrangement', 'Beat', 'District', 'SubDivision', 'Range', 'MaritalStatus',
+                'PoliceStation', 'User', 'Document', 'SOSAlert', 'ServiceRequest', 'Visit',
+                'HealthCondition', 'VulnerabilityHistory', 'VisitRequest', 'CitizenRegistration',
+                'CitizenAuth', 'VerificationRequest', 'MedicalHistory',
+                // Duplicate/invalid fields
+                'pincode', // Duplicate of pinCode (schema uses pinCode)
+                'gpsAccuracy', 'gpsCapturedAt', // These fields don't exist in schema
+                // Any other potential relation objects from frontend
+                'Beats', 'Districts', 'Ranges', 'PoliceStations'
+            ];
+            fieldsToRemove.forEach(field => {
+                delete mainData[field];
+            });
+            // Update citizen
+            let citizen;
+            try {
+                citizen = await database_1.prisma.seniorCitizen.update({
+                    where: { id },
+                    data: {
+                        ...mainData,
+                        submissionType: 'Update',
+                        updatedBy: req.user?.email,
+                        SpouseDetails: spouseDetails && (spouseDetails.fullName || spouseDetails.mobileNumber) ? {
+                            upsert: {
+                                create: spouseDetails,
+                                update: spouseDetails
+                            }
+                        } : undefined,
+                        MedicalHistory: medicalHistory ? {
+                            deleteMany: {},
+                            create: medicalHistory
+                        } : undefined,
+                        // Replace one-to-many relations
+                        FamilyMember: familyMembers ? {
+                            deleteMany: {},
+                            create: familyMembers
+                        } : undefined,
+                        EmergencyContact: emergencyContacts ? {
+                            deleteMany: {},
+                            create: emergencyContacts
+                        } : undefined,
+                        HouseholdHelp: householdHelp ? {
+                            deleteMany: {},
+                            create: householdHelp
+                        } : undefined
+                    },
+                    include: {
+                        FamilyMember: true,
+                        EmergencyContact: true,
+                        HouseholdHelp: true,
+                        SpouseDetails: true,
+                        MedicalHistory: true
+                    }
+                });
+            }
+            catch (prismaError) {
+                console.error('[updateProfile] Prisma Error:', prismaError);
+                console.error('[updateProfile] Error Message:', prismaError.message);
+                console.error('[updateProfile] Data being sent:', JSON.stringify({
+                    ...mainData,
+                    submissionType: 'Update',
+                    updatedBy: req.user?.email
+                }, null, 2));
+                throw prismaError;
+            }
             // Log update
             logger_1.auditLogger.info('Citizen updated', {
                 citizenId: citizen.id,

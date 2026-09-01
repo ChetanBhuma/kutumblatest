@@ -84,5 +84,42 @@ export declare class NotificationService {
      * Send officer task assignment notification
      */
     static sendOfficerTaskAssignment(officerPhone: string, citizenName: string, taskType: string, date: Date): Promise<void>;
+    static createInAppNotification(data: {
+        userId: string;
+        title: string;
+        message: string;
+        type?: string;
+        priority?: string;
+        data?: any;
+    }): Promise<{
+        message: string;
+        userId: string;
+        data: import("@prisma/client/runtime/library").JsonValue | null;
+        id: string;
+        createdAt: Date;
+        type: string;
+        priority: string;
+        title: string;
+        isRead: boolean;
+    } | null>;
+    static getUserNotifications(userId: string, page?: number, limit?: number): Promise<{
+        notifications: {
+            message: string;
+            userId: string;
+            data: import("@prisma/client/runtime/library").JsonValue | null;
+            id: string;
+            createdAt: Date;
+            type: string;
+            priority: string;
+            title: string;
+            isRead: boolean;
+        }[];
+        total: number;
+        unread: number;
+        pages: number;
+    }>;
+    static markAsRead(id: string, userId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
+    static markAllAsRead(userId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
+    static deleteNotification(id: string, userId: string): Promise<import(".prisma/client").Prisma.BatchPayload>;
 }
 //# sourceMappingURL=notificationService.d.ts.map

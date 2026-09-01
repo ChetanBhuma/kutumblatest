@@ -87,7 +87,6 @@ class CitizenAuthController {
                     // OTP should only be delivered via SMS
                 } : undefined
             };
-            console.log('DEBUG: Sending response:', JSON.stringify(responseData, null, 2));
             return res.status(result.success ? 200 : 400).json(responseData);
         }
         catch (error) {

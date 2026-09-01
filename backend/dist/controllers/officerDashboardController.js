@@ -223,14 +223,39 @@ class OfficerDashboardController {
             const limit = Number(req.query.limit) || 10;
             const skip = (page - 1) * limit;
             const search = req.query.search ? String(req.query.search) : undefined;
+            // Build where clause: Show citizens in officer's scope OR citizens with visits assigned to this officer
+            const orConditions = [
+                // Citizens with visits assigned to this officer
+                {
+                    Visit: {
+                        some: {
+                            officerId: officer.id,
+                            status: { in: ['SCHEDULED', 'IN_PROGRESS'] }
+                        }
+                    }
+                }
+            ];
+            // Add scopeFilter only if it has properties (not empty object)
+            // FIXED: Broaden scope to Police Station level as per requirement to show all mapped citizens
+            // regardless of specific Beat assignment.
+            if (officer.policeStationId) {
+                orConditions.push({ policeStationId: officer.policeStationId });
+            }
+            else if (Object.keys(scopeFilter).length > 0) {
+                orConditions.push(scopeFilter);
+            }
             const whereClause = {
-                ...scopeFilter,
-                isActive: true
+                isActive: true,
+                OR: orConditions
             };
             if (search) {
-                whereClause.OR = [
-                    { fullName: { contains: search, mode: 'insensitive' } },
-                    { mobileNumber: { contains: search } }
+                whereClause.AND = [
+                    {
+                        OR: [
+                            { fullName: { contains: search, mode: 'insensitive' } },
+                            { mobileNumber: { contains: search } }
+                        ]
+                    }
                 ];
             }
             const [citizens, total] = await Promise.all([

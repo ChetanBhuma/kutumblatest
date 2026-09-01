@@ -76,9 +76,9 @@ exports.RolePermissions = {
         Permission.CITIZENS_READ,
         Permission.VISITS_READ,
         Permission.VISITS_COMPLETE,
-        Permission.SOS_READ,
         Permission.SOS_RESPOND,
-        Permission.REPORTS_READ
+        Permission.REPORTS_READ,
+        Permission.REPORTS_EXPORT
     ],
     [Role.SUPERVISOR]: [
         Permission.CITIZENS_READ,
@@ -122,7 +122,8 @@ exports.RolePermissions = {
     [Role.DATA_ENTRY]: [
         Permission.CITIZENS_READ,
         Permission.CITIZENS_WRITE,
-        Permission.DOCUMENTS_UPLOAD
+        Permission.DOCUMENTS_UPLOAD,
+        Permission.REPORTS_EXPORT
     ]
 };
 const hasPermission = (role, permission) => {

@@ -5,6 +5,7 @@ const database_1 = require("../../config/database");
 const tokenService_1 = require("../../services/tokenService");
 const passwordService_1 = require("../../services/passwordService");
 const redisService_1 = require("../../services/redisService");
+const AuditService_1 = require("../../services/AuditService");
 const errorHandler_1 = require("../../middleware/errorHandler");
 const logger_1 = require("../../config/logger");
 const auth_1 = require("../../types/auth");
@@ -68,13 +69,12 @@ class LoginController {
                 data: { lastLogin: new Date() }
             });
             // Log successful login
-            logger_1.auditLogger.info('User logged in', {
-                userId: user.id,
-                email: user.email,
+            await AuditService_1.AuditService.log(user.id, 'LOGIN', 'User', user.id, {
+                message: 'User logged in',
                 role: resolvedRole,
-                ip: req.ip,
-                userAgent: req.get('user-agent')
-            });
+                category: 'authentication',
+                status: 'success'
+            }, req.ip || '0.0.0.0', req.get('user-agent') || 'Unknown');
             // Fetch dynamic permissions
             let dynamicPermissions = [];
             try {

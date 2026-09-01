@@ -22,9 +22,9 @@ excludeVisitId?: string) => Promise<VisitConflict>;
 export declare const getOfficerSchedule: (officerId: string, startDate: Date, endDate: Date) => Promise<({
     SeniorCitizen: {
         id: string;
+        vulnerabilityLevel: string;
         fullName: string;
         permanentAddress: string;
-        vulnerabilityLevel: string;
     };
 } & {
     id: string;
@@ -33,15 +33,15 @@ export declare const getOfficerSchedule: (officerId: string, startDate: Date, en
     createdAt: Date;
     updatedAt: Date;
     officerId: string;
-    photoUrl: string | null;
-    gpsLatitude: number | null;
-    gpsLongitude: number | null;
     policeStationId: string;
     beatId: string | null;
     visitType: string;
-    priority: string | null;
     seniorCitizenId: string;
     scheduledDate: Date;
+    photoUrl: string | null;
+    gpsLatitude: number | null;
+    gpsLongitude: number | null;
+    priority: string | null;
     completedDate: Date | null;
     notes: string | null;
     cancelledAt: Date | null;

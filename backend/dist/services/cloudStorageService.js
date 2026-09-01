@@ -124,7 +124,6 @@ class CloudStorageService {
         if (!url.startsWith('/')) {
             url = '/' + url;
         }
-        console.log(`DEBUG: Local Storage URL conversion: ${filePath} -> ${url}`);
         return url;
     }
     // Check if file exists

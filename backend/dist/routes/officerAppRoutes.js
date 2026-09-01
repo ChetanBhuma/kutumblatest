@@ -4,6 +4,8 @@ const express_1 = require("express");
 const officerAuthController_1 = require("../controllers/auth/officerAuthController");
 const officerDashboardController_1 = require("../controllers/officerDashboardController");
 const authenticate_1 = require("../middleware/authenticate");
+const authorize_1 = require("../middleware/authorize");
+const auth_1 = require("../types/auth");
 const visitController_1 = require("../controllers/visitController");
 const router = (0, express_1.Router)();
 // Public routes (Auth)
@@ -81,7 +83,7 @@ router.get('/assignments', visitController_1.VisitController.getOfficerAssignmen
  *       200:
  *         description: Dashboard metrics
  */
-router.get('/dashboard/metrics', officerDashboardController_1.OfficerDashboardController.getMetrics);
+router.get('/dashboard/metrics', (0, authorize_1.requirePermission)(auth_1.Permission.CITIZENS_READ), officerDashboardController_1.OfficerDashboardController.getMetrics);
 /**
  * @swagger
  * /officer-app/dashboard/suggestions:
@@ -94,7 +96,7 @@ router.get('/dashboard/metrics', officerDashboardController_1.OfficerDashboardCo
  *       200:
  *         description: List of suggested visits
  */
-router.get('/dashboard/suggestions', officerDashboardController_1.OfficerDashboardController.getSuggestions);
+router.get('/dashboard/suggestions', (0, authorize_1.requirePermission)(auth_1.Permission.CITIZENS_READ), officerDashboardController_1.OfficerDashboardController.getSuggestions);
 /**
  * @swagger
  * /officer-app/dashboard/citizens:
@@ -107,7 +109,7 @@ router.get('/dashboard/suggestions', officerDashboardController_1.OfficerDashboa
  *       200:
  *         description: List of beat citizens
  */
-router.get('/dashboard/citizens', officerDashboardController_1.OfficerDashboardController.getMyBeatCitizens);
+router.get('/dashboard/citizens', (0, authorize_1.requirePermission)(auth_1.Permission.CITIZENS_READ), officerDashboardController_1.OfficerDashboardController.getMyBeatCitizens);
 /**
  * @swagger
  * /officer-app/dashboard/nearby:
@@ -131,7 +133,7 @@ router.get('/dashboard/citizens', officerDashboardController_1.OfficerDashboardC
  *       200:
  *         description: List of nearby citizens
  */
-router.get('/dashboard/nearby', officerDashboardController_1.OfficerDashboardController.getNearbyCitizens);
+router.get('/dashboard/nearby', (0, authorize_1.requirePermission)(auth_1.Permission.CITIZENS_READ), officerDashboardController_1.OfficerDashboardController.getNearbyCitizens);
 /**
  * @swagger
  * /officer-app/profile:

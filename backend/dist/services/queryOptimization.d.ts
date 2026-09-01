@@ -19,8 +19,8 @@ declare class QueryOptimizationService {
                 requiresSpecialCare: boolean;
             }[] | {
                 id: string;
-                fileUrl: string;
                 seniorCitizenId: string;
+                fileUrl: string;
                 documentType: string;
                 documentName: string;
                 fileType: string;
@@ -33,15 +33,15 @@ declare class QueryOptimizationService {
                 createdAt: Date;
                 updatedAt: Date;
                 officerId: string;
-                photoUrl: string | null;
-                gpsLatitude: number | null;
-                gpsLongitude: number | null;
                 policeStationId: string;
                 beatId: string | null;
                 visitType: string;
-                priority: string | null;
                 seniorCitizenId: string;
                 scheduledDate: Date;
+                photoUrl: string | null;
+                gpsLatitude: number | null;
+                gpsLongitude: number | null;
+                priority: string | null;
                 completedDate: Date | null;
                 notes: string | null;
                 cancelledAt: Date | null;
@@ -56,10 +56,10 @@ declare class QueryOptimizationService {
                 id: string;
                 mobileNumber: string;
                 createdAt: Date;
+                verificationStatus: string;
+                seniorCitizenId: string;
                 address: string | null;
                 verifiedAt: Date | null;
-                seniorCitizenId: string;
-                verificationStatus: string;
                 relation: string;
                 isPrimary: boolean;
             }[] | {
@@ -69,8 +69,8 @@ declare class QueryOptimizationService {
                 status: import(".prisma/client").$Enums.AlertStatus;
                 createdAt: Date;
                 updatedAt: Date;
-                address: string | null;
                 seniorCitizenId: string;
+                address: string | null;
                 notes: string | null;
                 batteryLevel: number | null;
                 deviceInfo: import("@prisma/client/runtime/library").JsonValue | null;
@@ -161,6 +161,7 @@ declare class QueryOptimizationService {
                 status: import(".prisma/client").$Enums.VerificationStatus;
                 createdAt: Date;
                 updatedAt: Date;
+                seniorCitizenId: string;
                 documents: string[];
                 priority: string;
                 entityType: string;
@@ -174,12 +175,12 @@ declare class QueryOptimizationService {
                 verificationMethod: string | null;
                 verificationNotes: string | null;
                 rejectionReason: string | null;
-                seniorCitizenId: string;
             } | {
                 id: string;
                 status: import(".prisma/client").$Enums.VerificationStatus;
                 createdAt: Date;
                 updatedAt: Date;
+                seniorCitizenId: string;
                 documents: string[];
                 priority: string;
                 entityType: string;
@@ -193,11 +194,10 @@ declare class QueryOptimizationService {
                 verificationMethod: string | null;
                 verificationNotes: string | null;
                 rejectionReason: string | null;
-                seniorCitizenId: string;
             })[] | ({
                 id: string;
-                fileUrl: string;
                 seniorCitizenId: string;
+                fileUrl: string;
                 documentType: string;
                 documentName: string;
                 fileType: string;
@@ -205,8 +205,8 @@ declare class QueryOptimizationService {
                 uploadedAt: Date;
             } | {
                 id: string;
-                fileUrl: string;
                 seniorCitizenId: string;
+                fileUrl: string;
                 documentType: string;
                 documentName: string;
                 fileType: string;
@@ -218,10 +218,10 @@ declare class QueryOptimizationService {
                 id: string;
                 mobileNumber: string;
                 createdAt: Date;
+                verificationStatus: string;
+                seniorCitizenId: string;
                 address: string | null;
                 verifiedAt: Date | null;
-                seniorCitizenId: string;
-                verificationStatus: string;
                 relation: string;
                 isPrimary: boolean;
             } | {
@@ -230,10 +230,10 @@ declare class QueryOptimizationService {
                 id: string;
                 mobileNumber: string;
                 createdAt: Date;
+                verificationStatus: string;
+                seniorCitizenId: string;
                 address: string | null;
                 verifiedAt: Date | null;
-                seniorCitizenId: string;
-                verificationStatus: string;
                 relation: string;
                 isPrimary: boolean;
             })[] | ({
@@ -241,8 +241,8 @@ declare class QueryOptimizationService {
                 id: string;
                 mobileNumber: string | null;
                 createdAt: Date;
-                age: number | null;
                 seniorCitizenId: string;
+                age: number | null;
                 relation: string;
                 isPrimaryContact: boolean;
             } | {
@@ -250,8 +250,8 @@ declare class QueryOptimizationService {
                 id: string;
                 mobileNumber: string | null;
                 createdAt: Date;
-                age: number | null;
                 seniorCitizenId: string;
+                age: number | null;
                 relation: string;
                 isPrimaryContact: boolean;
             })[] | ({
@@ -262,14 +262,14 @@ declare class QueryOptimizationService {
                 updatedAt: Date;
                 startDate: Date | null;
                 endDate: Date | null;
+                verificationStatus: string;
+                seniorCitizenId: string;
                 address: string | null;
                 remarks: string | null;
-                seniorCitizenId: string;
                 staffType: string;
                 idProofType: string | null;
                 idProofNumber: string | null;
                 idProofUrl: string | null;
-                verificationStatus: string;
                 employmentType: string;
             } | {
                 name: string;
@@ -279,14 +279,14 @@ declare class QueryOptimizationService {
                 updatedAt: Date;
                 startDate: Date | null;
                 endDate: Date | null;
+                verificationStatus: string;
+                seniorCitizenId: string;
                 address: string | null;
                 remarks: string | null;
-                seniorCitizenId: string;
                 staffType: string;
                 idProofType: string | null;
                 idProofNumber: string | null;
                 idProofUrl: string | null;
-                verificationStatus: string;
                 employmentType: string;
             })[] | ({
                 id: string;
@@ -295,8 +295,8 @@ declare class QueryOptimizationService {
                 status: import(".prisma/client").$Enums.AlertStatus;
                 createdAt: Date;
                 updatedAt: Date;
-                address: string | null;
                 seniorCitizenId: string;
+                address: string | null;
                 notes: string | null;
                 batteryLevel: number | null;
                 deviceInfo: import("@prisma/client/runtime/library").JsonValue | null;
@@ -310,8 +310,8 @@ declare class QueryOptimizationService {
                 status: import(".prisma/client").$Enums.AlertStatus;
                 createdAt: Date;
                 updatedAt: Date;
-                address: string | null;
                 seniorCitizenId: string;
+                address: string | null;
                 notes: string | null;
                 batteryLevel: number | null;
                 deviceInfo: import("@prisma/client/runtime/library").JsonValue | null;
@@ -324,9 +324,9 @@ declare class QueryOptimizationService {
                 createdAt: Date;
                 updatedAt: Date;
                 description: string;
+                seniorCitizenId: string;
                 priority: string;
                 assignedTo: string | null;
-                seniorCitizenId: string;
                 serviceType: string;
                 resolution: string | null;
                 completedAt: Date | null;
@@ -336,9 +336,9 @@ declare class QueryOptimizationService {
                 createdAt: Date;
                 updatedAt: Date;
                 description: string;
+                seniorCitizenId: string;
                 priority: string;
                 assignedTo: string | null;
-                seniorCitizenId: string;
                 serviceType: string;
                 resolution: string | null;
                 completedAt: Date | null;
@@ -349,15 +349,15 @@ declare class QueryOptimizationService {
                 createdAt: Date;
                 updatedAt: Date;
                 officerId: string;
-                photoUrl: string | null;
-                gpsLatitude: number | null;
-                gpsLongitude: number | null;
                 policeStationId: string;
                 beatId: string | null;
                 visitType: string;
-                priority: string | null;
                 seniorCitizenId: string;
                 scheduledDate: Date;
+                photoUrl: string | null;
+                gpsLatitude: number | null;
+                gpsLongitude: number | null;
+                priority: string | null;
                 completedDate: Date | null;
                 notes: string | null;
                 cancelledAt: Date | null;
@@ -373,15 +373,15 @@ declare class QueryOptimizationService {
                 createdAt: Date;
                 updatedAt: Date;
                 officerId: string;
-                photoUrl: string | null;
-                gpsLatitude: number | null;
-                gpsLongitude: number | null;
                 policeStationId: string;
                 beatId: string | null;
                 visitType: string;
-                priority: string | null;
                 seniorCitizenId: string;
                 scheduledDate: Date;
+                photoUrl: string | null;
+                gpsLatitude: number | null;
+                gpsLongitude: number | null;
+                priority: string | null;
                 completedDate: Date | null;
                 notes: string | null;
                 cancelledAt: Date | null;
@@ -394,16 +394,16 @@ declare class QueryOptimizationService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                remarks: string | null;
                 seniorCitizenId: string;
+                remarks: string | null;
                 conditionName: string;
                 sinceWhen: string | null;
             } | {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                remarks: string | null;
                 seniorCitizenId: string;
+                remarks: string | null;
                 conditionName: string;
                 sinceWhen: string | null;
             })[] | ({
@@ -491,6 +491,7 @@ declare class QueryOptimizationService {
                 status: import(".prisma/client").$Enums.VerificationStatus;
                 createdAt: Date;
                 updatedAt: Date;
+                seniorCitizenId: string;
                 documents: string[];
                 priority: string;
                 entityType: string;
@@ -504,14 +505,13 @@ declare class QueryOptimizationService {
                 verificationMethod: string | null;
                 verificationNotes: string | null;
                 rejectionReason: string | null;
-                seniorCitizenId: string;
             }[] | {
                 name: string;
                 id: string;
                 mobileNumber: string | null;
                 createdAt: Date;
-                age: number | null;
                 seniorCitizenId: string;
+                age: number | null;
                 relation: string;
                 isPrimaryContact: boolean;
             }[] | {
@@ -522,14 +522,14 @@ declare class QueryOptimizationService {
                 updatedAt: Date;
                 startDate: Date | null;
                 endDate: Date | null;
+                verificationStatus: string;
+                seniorCitizenId: string;
                 address: string | null;
                 remarks: string | null;
-                seniorCitizenId: string;
                 staffType: string;
                 idProofType: string | null;
                 idProofNumber: string | null;
                 idProofUrl: string | null;
-                verificationStatus: string;
                 employmentType: string;
             }[] | {
                 id: string;
@@ -537,9 +537,9 @@ declare class QueryOptimizationService {
                 createdAt: Date;
                 updatedAt: Date;
                 description: string;
+                seniorCitizenId: string;
                 priority: string;
                 assignedTo: string | null;
-                seniorCitizenId: string;
                 serviceType: string;
                 resolution: string | null;
                 completedAt: Date | null;
@@ -547,8 +547,8 @@ declare class QueryOptimizationService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
-                remarks: string | null;
                 seniorCitizenId: string;
+                remarks: string | null;
                 conditionName: string;
                 sinceWhen: string | null;
             }[] | {
@@ -624,10 +624,14 @@ declare class QueryOptimizationService {
         createdAt: Date;
         updatedAt: Date;
         isActive: boolean;
+        policeStationId: string | null;
+        beatId: string | null;
+        vulnerabilityLevel: string;
+        districtId: string | null;
+        fullName: string;
         aadhaarNumber: string | null;
         registrationNo: string | null;
         srCitizenUniqueId: string | null;
-        fullName: string;
         dateOfBirth: Date;
         age: number;
         gender: string;
@@ -652,10 +656,7 @@ declare class QueryOptimizationService {
         gpsLongitude: number | null;
         landmark: string | null;
         rangeId: string | null;
-        districtId: string | null;
         subDivisionId: string | null;
-        policeStationId: string | null;
-        beatId: string | null;
         livingArrangementId: string | null;
         livingArrangement: string | null;
         numberOfChildren: number | null;
@@ -680,7 +681,6 @@ declare class QueryOptimizationService {
         freeTime: string | null;
         visitNotes: string | null;
         lastVisitDate: Date | null;
-        vulnerabilityLevel: string;
         interestedServices: string[];
         consentServiceRequest: boolean;
         consentDataUse: boolean;
@@ -763,10 +763,14 @@ declare class QueryOptimizationService {
         createdAt: Date;
         updatedAt: Date;
         isActive: boolean;
+        policeStationId: string | null;
+        beatId: string | null;
+        vulnerabilityLevel: string;
+        districtId: string | null;
+        fullName: string;
         aadhaarNumber: string | null;
         registrationNo: string | null;
         srCitizenUniqueId: string | null;
-        fullName: string;
         dateOfBirth: Date;
         age: number;
         gender: string;
@@ -791,10 +795,7 @@ declare class QueryOptimizationService {
         gpsLongitude: number | null;
         landmark: string | null;
         rangeId: string | null;
-        districtId: string | null;
         subDivisionId: string | null;
-        policeStationId: string | null;
-        beatId: string | null;
         livingArrangementId: string | null;
         livingArrangement: string | null;
         numberOfChildren: number | null;
@@ -819,7 +820,6 @@ declare class QueryOptimizationService {
         freeTime: string | null;
         visitNotes: string | null;
         lastVisitDate: Date | null;
-        vulnerabilityLevel: string;
         interestedServices: string[];
         consentServiceRequest: boolean;
         consentDataUse: boolean;

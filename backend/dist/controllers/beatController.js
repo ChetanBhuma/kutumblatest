@@ -70,10 +70,11 @@ class BeatController {
                 // SECURITY: If scope is restricted but we couldn't apply a filter (e.g., missing profile ID),
                 // we MUST return empty result instead of leaking all data.
                 if (!scoped) {
-                    return res.json({
+                    res.json({
                         success: true,
                         data: [],
                     });
+                    return;
                 }
             }
             if (isActive !== undefined) {

@@ -9,8 +9,15 @@ const express_validator_1 = require("express-validator");
 const validate_1 = require("../middleware/validate");
 const notificationService_1 = require("../services/notificationService");
 const router = (0, express_1.Router)();
-// All routes require authentication and admin/super_admin role
+// All routes require authentication
 router.use(authenticate_1.authenticate);
+// --- User Routes ---
+router.get('/', notificationController_1.NotificationController.getNotifications);
+router.patch('/read-all', notificationController_1.NotificationController.markAllRead);
+router.patch('/:id/read', notificationController_1.NotificationController.markRead);
+router.delete('/:id', notificationController_1.NotificationController.deleteNotification);
+// --- Admin Routes ---
+// Only admin/super_admin can send notifications via API
 router.use((0, authorize_1.requireRole)([auth_1.Role.ADMIN, auth_1.Role.SUPER_ADMIN]));
 /**
  * @swagger
