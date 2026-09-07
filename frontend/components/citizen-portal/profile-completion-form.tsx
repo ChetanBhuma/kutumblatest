@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import Webcam from 'react-webcam';
-import { AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Upload, MapPin, Camera, X, User, Plus, Trash2, Eye, FileText } from 'lucide-react';
+import { AlertCircle, CheckCircle2, ChevronRight, ChevronLeft, Loader2, Upload, MapPin, Camera, X, User, Plus, Trash2, Eye, FileText, Home } from 'lucide-react';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/components/ui/use-toast';
 import { calculateProfileCompleteness } from '@/lib/utils';
@@ -49,6 +49,7 @@ export default function ProfileCompletionForm() {
         fullName: '',
         dob: '',
         gender: '',
+        aadhaarNumber: '',
         occupation: '',
         yearOfRetirement: '',
         retiredFrom: '',
@@ -63,6 +64,8 @@ export default function ProfileCompletionForm() {
         email: '',
 
         // Address
+        addressType: 'HOME',
+        customAddressType: '',
         addressLine1: '',
         addressLine2: '',
         city: 'New Delhi',
@@ -245,29 +248,53 @@ export default function ProfileCompletionForm() {
                     // ... (Using existing mapping logic but expanded)
                     const clean = (val: string, placeholder: string) => (val === placeholder ? '' : val);
 
+                    const normalizeGender = (g?: string) => {
+                        if (!g || g === 'Unknown') return '';
+                        const lower = g.trim().toLowerCase();
+                        if (lower === 'male') return 'Male';
+                        if (lower === 'female') return 'Female';
+                        if (lower === 'other') return 'Other';
+                        return g;
+                    };
+
+                    const normalizeReligion = (r?: string) => {
+                        if (!r) return '';
+                        const trimmed = r.trim();
+                        if (!trimmed) return '';
+                        const standard = ['Hindu', 'Muslim', 'Christian', 'Sikh', 'Jain', 'Buddhist', 'Other'];
+                        const matchedStd = standard.find(s => s.toLowerCase() === trimmed.toLowerCase());
+                        if (matchedStd) return matchedStd;
+                        return trimmed;
+                    };
+
                     setFormData((prev: any) => ({
                         ...prev,
                         fullName: clean(c.fullName || '', 'Unknown'),
                         photoUrl: c.photoUrl || '',
                         addressProofUrl: c.addressProofUrl || '', // Map address proof URL
                         dob: c.dateOfBirth ? new Date(c.dateOfBirth).toISOString().split('T')[0] : '',
-                        gender: clean(c.gender || '', 'Other'),
+                        gender: normalizeGender(c.gender),
+                        aadhaarNumber: c.aadhaarNumber || '',
                         mobileNumber: c.mobileNumber || '',
                         maritalStatus: c.maritalStatus || '',
                         occupation: c.occupation || '',
                         yearOfRetirement: c.yearOfRetirement || '',
                         retiredFrom: c.retiredFrom || '',
                         specialization: c.specialization || '',
-                        religion: c.religion || '',
+                        religion: normalizeReligion(c.religion),
 
-
-
+                        gpsLatitude: c.gpsLatitude ?? null,
+                        gpsLongitude: c.gpsLongitude ?? null,
+                        gpsAccuracy: c.gpsAccuracy ?? null,
+                        gpsCapturedAt: c.gpsCapturedAt ?? null,
 
                         telephoneNumber: c.telephoneNumber || '',
                         alternateMobile: c.alternateMobile || '',
                         whatsappNumber: c.whatsappNumber || '',
                         email: c.email || '',
 
+                        addressType: ['HOME', 'WORK', 'HOTEL'].includes(c.addressType || '') ? (c.addressType || 'HOME') : (c.addressType ? 'Other' : 'HOME'),
+                        customAddressType: ['HOME', 'WORK', 'HOTEL'].includes(c.addressType || '') ? '' : (c.addressType || ''),
                         addressLine1: c.addressLine1 || (c.permanentAddress && c.permanentAddress !== 'Pending Update' ? c.permanentAddress.split(',')[0].trim() : '') || '',
                         addressLine2: c.addressLine2 || (c.permanentAddress && c.permanentAddress !== 'Pending Update' ? (c.permanentAddress.split(',')[1] || '').trim() : '') || '',
                         pincode: clean(c.pinCode || '', '000000'),
@@ -354,7 +381,7 @@ export default function ProfileCompletionForm() {
         navigator.geolocation.getCurrentPosition(
             async (position) => {
                 const { latitude, longitude, accuracy } = position.coords;
-                console.log('GPS:', latitude, longitude, 'Accuracy:', accuracy);
+
 
                 // Store GPS coordinates in formData
                 handleInputChange('gpsLatitude', latitude);
@@ -371,12 +398,11 @@ export default function ProfileCompletionForm() {
                         const feature = findFeatureContainingPoint(latitude, longitude, boundaries);
 
                         if (feature && feature.properties) {
-                            console.log('Found PS Feature Properties:', feature.properties);
+
                             // Property keys from backend/jsongeo/Police Station Boundary.geojson
                             const psName = feature.properties.POL_STN_NM || feature.properties.NAME || feature.properties.Name || feature.properties.name;
-                            console.log('Extracted PS Name:', psName);
-                            console.log('Available Police Stations Master:', masters.policeStations);
-                            console.log('Available Districts Master:', masters.districts);
+
+
 
                             if (psName && masters.policeStations) {
                                 // Clean PS Name (remove 'PS ' prefix if present for better matching)
@@ -389,19 +415,19 @@ export default function ProfileCompletionForm() {
                                     return masterName === targetName || masterName.includes(targetName) || targetName.includes(masterName);
                                 });
 
-                                console.log('Matched PS Object:', matchedPS);
+
 
                                 if (matchedPS) {
-                                    console.log('Setting Police Station ID:', matchedPS.id);
+
                                     handleInputChange('policeStation', matchedPS.id);
 
                                     // Robust District Mapping: Use the districtId from the matched PS directly
                                     if (matchedPS.districtId) {
-                                        console.log('District ID from PS found:', matchedPS.districtId);
+
                                         handleInputChange('district', matchedPS.districtId);
                                     } else {
                                         // Fallback: If districtId missing in PS, try matching by Name from GeoJSON
-                                        console.log('PS has no districtId. Trying fallback by Name from GeoJSON properties...');
+
                                         const distName = feature.properties.DIST_NM || feature.properties.DISTRICT || feature.properties.District;
 
                                         if (distName && masters.districts) {
@@ -411,19 +437,19 @@ export default function ProfileCompletionForm() {
                                             );
 
                                             if (matchedDist) {
-                                                console.log('Fallback District Found by Name:', matchedDist);
+
                                                 handleInputChange('district', matchedDist.id);
                                             } else {
-                                                console.log('Fallback District Name NOT matched in Level-2:', distName);
+
                                             }
                                         } else {
-                                            console.log('No District Name in GeoJSON or Masters missing.');
+
                                         }
                                     }
 
                                     toast({ title: "Location Detected", description: `Jurisdiction: ${matchedPS.name}` });
                                 } else {
-                                    console.log('PS Name found but not in Masters:', psName);
+
                                     // Fallback: If District property exists
                                     const distName = feature.properties.DIST_NM || feature.properties.DISTRICT || feature.properties.District;
                                     if (distName && masters.districts) {
@@ -514,7 +540,7 @@ export default function ProfileCompletionForm() {
     };
 
     const submitProfile = async () => {
-        console.log('DEBUG: submitProfile called');
+
         setSubmitting(true);
         try {
             // Build clean payload with ONLY backend-expected fields (no spread to avoid duplicates)
@@ -523,6 +549,7 @@ export default function ProfileCompletionForm() {
                 fullName: formData.fullName,
                 dateOfBirth: formData.dob,
                 gender: formData.gender,
+                aadhaarNumber: formData.aadhaarNumber || null,
                 maritalStatus: formData.maritalStatus || null,
                 religion: formData.religion || null,
                 occupation: formData.occupation || null,
@@ -536,6 +563,7 @@ export default function ProfileCompletionForm() {
                 alternateMobile: formData.alternateMobile || null,
 
                 // Address
+                addressType: formData.addressType === 'Other' ? (formData.customAddressType?.trim() || 'Other') : (formData.addressType || 'HOME'),
                 addressLine1: formData.addressLine1,
                 addressLine2: formData.addressLine2,
                 pinCode: formData.pincode,
@@ -612,7 +640,7 @@ export default function ProfileCompletionForm() {
                 }
             });
 
-            console.log('DEBUG: Clean Payload being sent:', JSON.stringify(payload, null, 2));
+
 
             const res = await apiClient.updateMyProfile(payload);
 
@@ -706,14 +734,14 @@ export default function ProfileCompletionForm() {
                     <span className="text-blue-600 font-bold">{progress}% Profile Strength</span>
                 </div>
                 <Progress value={progress} className="h-2" />
-                <div className="flex justify-between mt-4 overflow-x-auto pb-2 gap-2 hide-scrollbar">
+                <div className="flex justify-start sm:justify-between mt-4 overflow-x-auto pb-2 gap-2 sm:gap-4 no-scrollbar">
                     {STEPS.map((step) => (
-                        <div key={step.id} className={`flex-shrink-0 flex flex-col items-center w-24 ${step.id === currentStep ? 'text-blue-600' : 'text-gray-400'}`}>
-                            <div className={`w-8 h-8 rounded-full flex items-center justify-center mb-1 border-2 font-bold text-sm
+                        <div key={step.id} className={`flex-shrink-0 flex flex-col items-center w-20 sm:w-24 ${step.id === currentStep ? 'text-blue-600' : 'text-gray-400'}`}>
+                            <div className={`w-7 h-7 sm:w-8 sm:h-8 rounded-full flex items-center justify-center mb-1 border-2 font-bold text-xs sm:text-sm
                                 ${step.id === currentStep ? 'border-blue-600 bg-blue-50' : step.id < currentStep ? 'border-green-600 bg-green-50 text-green-600' : 'border-gray-200'}`}>
-                                {step.id < currentStep ? <CheckCircle2 className="h-5 w-5" /> : step.id}
+                                {step.id < currentStep ? <CheckCircle2 className="h-4 w-4 sm:h-5 sm:w-5" /> : step.id}
                             </div>
-                            <span className="text-[10px] uppercase font-bold text-center tracking-wider truncate w-full">{step.title}</span>
+                            <span className="text-[9px] sm:text-[10px] uppercase font-bold text-center tracking-wider truncate w-full">{step.title}</span>
                         </div>
                     ))}
                 </div>
@@ -777,6 +805,16 @@ export default function ProfileCompletionForm() {
                                         )}
                                     </SelectContent>
                                 </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Aadhaar (Last 4 digits - Optional)</Label>
+                                <Input
+                                    value={formData.aadhaarNumber}
+                                    onChange={e => handleInputChange('aadhaarNumber', e.target.value.replace(/\D/g, '').slice(0, 4))}
+                                    placeholder="XXXX"
+                                    maxLength={4}
+                                    className="font-mono"
+                                />
                             </div>
                             <div className="space-y-2">
                                 <Label>Marital Status</Label>
@@ -877,6 +915,42 @@ export default function ProfileCompletionForm() {
                                             </div>
                                         ))}
                                     </div>
+                                </div>
+
+                                {/* Save Address As Dropdown */}
+                                <div className="space-y-3 md:col-span-2 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                                            <Home className="w-4 h-4 text-blue-600" /> Save Address As <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Select
+                                            value={formData.addressType || 'HOME'}
+                                            onValueChange={v => handleInputChange('addressType', v)}
+                                        >
+                                            <SelectTrigger className="bg-white border-slate-300">
+                                                <SelectValue placeholder="Select Address Type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="HOME">🏠 HOME</SelectItem>
+                                                <SelectItem value="WORK">💼 WORK</SelectItem>
+                                                <SelectItem value="HOTEL">🏨 HOTEL</SelectItem>
+                                                <SelectItem value="Other">📍 Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {formData.addressType === 'Other' && (
+                                        <div className="space-y-1.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                            <Label className="text-xs font-semibold text-slate-700">Specify Address Type / Name <span className="text-red-500">*</span></Label>
+                                            <Input
+                                                value={formData.customAddressType || ''}
+                                                onChange={e => handleInputChange('customAddressType', e.target.value)}
+                                                placeholder="E.g. Farmhouse, Son's Residence, Vacation Home"
+                                                className="bg-white border-slate-300"
+                                                required={formData.addressType === 'Other'}
+                                            />
+                                        </div>
+                                    )}
                                 </div>
 
                                 <div className="space-y-2 md:col-span-2">
@@ -1282,8 +1356,13 @@ export default function ProfileCompletionForm() {
                                         <div><span className="block text-gray-500 text-xs">Mobile Number</span><span className="font-medium">{formData.mobileNumber}</span></div>
                                         <div><span className="block text-gray-500 text-xs">Email</span><span className="font-medium">{formData.email || '-'}</span></div>
                                         <div className="col-span-1 md:col-span-2">
-                                            <span className="block text-gray-500 text-xs">Permanent Address</span>
-                                            <span className="font-medium block">{formData.addressLine1}, {formData.addressLine2}</span>
+                                            <div className="flex items-center gap-2">
+                                                <span className="block text-gray-500 text-xs">Permanent Address</span>
+                                                <span className="inline-flex items-center gap-1 text-[11px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200">
+                                                    📍 {formData.addressType === 'Other' ? (formData.customAddressType || 'Custom') : (formData.addressType || 'HOME')}
+                                                </span>
+                                            </div>
+                                            <span className="font-medium block mt-1">{formData.addressLine1}, {formData.addressLine2}</span>
                                             <span className="font-medium block">{formData.city}, {formData.state} - {formData.pincode}</span>
                                         </div>
                                         <div>
@@ -1422,7 +1501,7 @@ export default function ProfileCompletionForm() {
                                 className="w-full h-full object-cover"
                                 mirrored={true}
                                 videoConstraints={{ facingMode: "user" }}
-                                onUserMedia={() => console.log('Webcam access granted')}
+                                onUserMedia={() => { }}
                                 onUserMediaError={(err) => {
                                     console.error('Webcam error:', err);
                                     toast({ title: "Camera Error", description: "Could not access camera. Please check permissions.", variant: "destructive" });

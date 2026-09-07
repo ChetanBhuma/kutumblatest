@@ -41,6 +41,7 @@ const queryBuilder_1 = require("../utils/queryBuilder");
 const notificationService_1 = require("../services/notificationService");
 const citizenAuthService = __importStar(require("../services/citizenAuthService"));
 const tokenService_1 = require("../services/tokenService");
+const VerificationService = __importStar(require("../services/verificationService"));
 const workflowValidator_1 = require("../utils/workflowValidator");
 const auth_1 = require("../types/auth");
 const db = database_1.prisma;
@@ -112,16 +113,19 @@ const buildRegistrationTimeline = (registration, verificationRequest, verificati
         });
     }
     if (verificationRequest) {
+        // Handle both VisitRequest (legacy) and VerificationRequest (new)
+        const isLegacy = !verificationRequest.entityType;
+        const status = isLegacy ? verificationRequest.status : verificationRequest.status;
         timeline.push({
             key: 'verification-request',
             title: 'Verification visit requested',
-            description: `Verification request is ${verificationRequest.status}`,
-            status: visitTimelineStatus(verificationRequest.status),
+            description: `Verification request is ${status}`,
+            status: visitTimelineStatus(status),
             timestamp: verificationRequest.createdAt,
             metadata: {
-                visitType: verificationRequest.visitType,
-                preferredDate: verificationRequest.preferredDate,
-                notes: verificationRequest.notes
+                visitType: isLegacy ? verificationRequest.visitType : 'Verification',
+                preferredDate: isLegacy ? verificationRequest.preferredDate : null,
+                notes: verificationRequest.remarks || verificationRequest.notes
             }
         });
     }
@@ -320,16 +324,31 @@ class CitizenPortalController {
                 }
             });
             // Link to registration if exists
+            // Link to registration if exists, or CREATE if new registration
             let citizen = await db.seniorCitizen.findFirst({
                 where: { mobileNumber: registration.mobileNumber }
             });
-            if (citizen) {
-                // Link to registration
-                await db.citizenRegistration.update({
-                    where: { id },
-                    data: { citizenId: citizen.id }
+            if (!citizen) {
+                // Create new Senior Citizen profile for this registration
+                const dob = registration.draftData?.dateOfBirth ? new Date(registration.draftData.dateOfBirth) : null;
+                citizen = await db.seniorCitizen.create({
+                    data: {
+                        mobileNumber: registration.mobileNumber,
+                        fullName: registration.fullName || '',
+                        dateOfBirth: dob || new Date(), // Fallback if DOB missing
+                        age: dob ? calculateAge(dob.toISOString()) : 0,
+                        gender: 'Unknown', // Required field
+                        permanentAddress: 'Pending Update', // Required field
+                        pinCode: '000000', // Required field
+                        status: 'IN_PROGRESS'
+                    }
                 });
             }
+            // Always Link to registration
+            await db.citizenRegistration.update({
+                where: { id },
+                data: { citizenId: citizen.id }
+            });
             // Get Auth Record
             const auth = await db.citizenAuth.findUnique({
                 where: { mobileNumber: registration.mobileNumber }
@@ -486,7 +505,7 @@ class CitizenPortalController {
                                 orderBy: { scheduledDate: 'desc' },
                                 take: 10
                             },
-                            VisitRequest: {
+                            VerificationRequest: {
                                 orderBy: { createdAt: 'desc' },
                                 take: 5
                             }
@@ -509,7 +528,9 @@ class CitizenPortalController {
             if (!isAuthorized && !isOwner) {
                 throw new errorHandler_1.AppError('Unauthorized access to registration details', 403);
             }
-            const verificationRequest = registration.visitRequests.find((req) => isVerificationType(req.visitType)) ??
+            // Hybrid approach: Look for VerificationRequest OR VisitRequest
+            const verificationRequest = registration.citizen?.VerificationRequest?.[0] ??
+                registration.visitRequests.find((req) => isVerificationType(req.visitType)) ??
                 registration.visitRequests[0];
             // Fix: Access Visit (Capitalized) and handle null citizen
             // @ts-ignore
@@ -577,10 +598,14 @@ class CitizenPortalController {
                     email: citizenData.email,
                     permanentAddress: citizenData.address, // Mapped from 'address'
                     presentAddress: citizenData.address, // Assuming same for now
-                    districtId: citizenData.districtId,
-                    policeStationId: assignedPoliceStationId,
-                    beatId: assignedBeatId,
+                    addressLine1: citizenData.addressLine1,
+                    addressLine2: citizenData.addressLine2,
+                    // Relations using CONNECT strategy
+                    District: citizenData.districtId ? { connect: { id: citizenData.districtId } } : undefined,
+                    PoliceStation: assignedPoliceStationId ? { connect: { id: assignedPoliceStationId } } : undefined,
+                    Beat: assignedBeatId ? { connect: { id: assignedBeatId } } : undefined,
                     religion: citizenData.religion,
+                    pinCode: citizenData.pincode, // Capture explicit pincode
                     // New Fields
                     telephoneNumber: citizenData.telephoneNumber,
                     specialization: citizenData.specialization,
@@ -592,8 +617,10 @@ class CitizenPortalController {
                     aadhaarNumber: citizenData.aadhaarNumber,
                     numberOfChildren: citizenData.numberOfChildren ? parseInt(citizenData.numberOfChildren) : 0,
                     familyType: citizenData.familyType,
-                    // Status updates
-                    registrationStep: 'COMPLETED',
+                    addressProofUrl: citizenData.addressProofUrl,
+                    gpsLatitude: citizenData.gpsLatitude,
+                    gpsLongitude: citizenData.gpsLongitude,
+                    // Status updates (SeniorCitizen model does NOT have registrationStep)
                     status: 'PENDING_REVIEW',
                     submissionType: 'Self-Service',
                     updatedAt: new Date()
@@ -641,13 +668,15 @@ class CitizenPortalController {
                 }
             }
             // Human/Friends/Relatives -> Map to FamilyMember
-            if (citizenData.relativeName && citizenData.relation) {
-                await db.familyMember.create({
+            // Human/Friends/Relatives -> Map to EmergencyContact (Primary)
+            if (citizenData.relativeName && citizenData.contactNo) {
+                await db.emergencyContact.create({
                     data: {
                         seniorCitizenId: citizen.id,
                         name: citizenData.relativeName,
-                        relation: citizenData.relation,
+                        relation: citizenData.relation || 'Relative',
                         mobileNumber: citizenData.contactNo,
+                        isPrimary: true
                     }
                 });
             }
@@ -674,39 +703,17 @@ class CitizenPortalController {
                 where: { mobileNumber: registration.mobileNumber },
                 data: { citizenId: citizen.id }
             });
-            // Auto-assign Beat Officer logic
-            let assignedOfficerId = null;
-            if (assignedBeatId) {
-                const officer = await db.beatOfficer.findFirst({
-                    where: { beatId: assignedBeatId, isActive: true }
-                });
-                if (officer)
-                    assignedOfficerId = officer.id;
-            }
-            // Create Verification Visit Request
-            await db.visitRequest.create({
-                data: {
-                    seniorCitizenId: citizen.id,
-                    registrationId: registration.id,
-                    visitType: 'Verification',
-                    status: assignedOfficerId ? 'Scheduled' : 'Pending',
-                    preferredDate: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000)
-                }
+            // Create Verification Request using robust service (handles auto-assignment)
+            await VerificationService.createVerificationRequest({
+                entityType: 'SeniorCitizen',
+                entityId: citizen.id,
+                seniorCitizenId: citizen.id,
+                requestedBy: citizen.id,
+                priority: 'High',
+                remarks: 'Initial Registration Verification',
+                documents: []
             });
-            // If officer assigned, create Scheduled Visit
-            if (assignedOfficerId && citizen.policeStationId) {
-                await db.visit.create({
-                    data: {
-                        seniorCitizenId: citizen.id,
-                        officerId: assignedOfficerId,
-                        policeStationId: citizen.policeStationId,
-                        visitType: 'Verification',
-                        status: 'SCHEDULED',
-                        scheduledDate: new Date(Date.now() + 24 * 60 * 60 * 1000),
-                        notes: 'Auto-scheduled initial verification visit'
-                    }
-                });
-            }
+            // NOTE: VerificationService handles Visit creation automatically if officer is found
             // Send notification
             if (citizen.mobileNumber) {
                 notificationService_1.NotificationService.sendRegistrationConfirmation(citizen.mobileNumber, null, citizen.fullName).catch((err) => console.error('Failed to send registration notification', err));
@@ -1069,7 +1076,8 @@ class CitizenPortalController {
                             id: true,
                             name: true,
                             rank: true,
-                            badgeNumber: true
+                            badgeNumber: true,
+                            mobileNumber: true
                         }
                     },
                     PoliceStation: {

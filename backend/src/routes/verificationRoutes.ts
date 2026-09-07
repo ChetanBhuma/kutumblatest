@@ -1,17 +1,19 @@
 import { Router } from 'express';
 import { VerificationController } from '../controllers/verificationController';
 import { authenticate } from '../middleware/authenticate';
-import { requirePermission, requireRole } from '../middleware/authorize';
+import { requirePermission, requireRole, requireAnyPermission } from '../middleware/authorize';
 import { Permission, Role } from '../types/auth';
 import { body, query } from 'express-validator';
 import { validate } from '../middleware/validate';
 import { ValidationRules } from '../middleware/validation';
 import { asyncHandler } from '../middleware/asyncHandler';
+import { dataScopeMiddleware } from '../middleware/dataScopeMiddleware';
 
 const router = Router();
 
-// All routes require authentication
+// All routes require authentication and data scope filtering
 router.use(authenticate);
+router.use(dataScopeMiddleware);
 
 /**
  * @route   POST /api/v1/verifications
@@ -22,7 +24,7 @@ router.post(
     '/',
     requirePermission(Permission.CITIZENS_WRITE),
     [
-        body('entityType').isIn(['HouseholdHelp', 'EmergencyContact', 'Tenant', 'Other']).withMessage('Valid entity type required'),
+        body('entityType').isIn(['HouseholdHelp', 'EmergencyContact', 'Tenant', 'SeniorCitizen', 'Other']).withMessage('Valid entity type required'),
         body('entityId').trim().notEmpty().withMessage('Entity ID required'),
         body('seniorCitizenId').trim().notEmpty().withMessage('Citizen ID required'),
         body('priority').optional().isIn(['Low', 'Normal', 'High', 'Urgent']),
@@ -42,8 +44,8 @@ router.get(
     '/',
     requirePermission(Permission.CITIZENS_READ),
     [
-        query('status').optional().isIn(['Pending', 'InProgress', 'Approved', 'Rejected']),
-        query('entityType').optional().isIn(['HouseholdHelp', 'EmergencyContact', 'Tenant', 'Other']),
+        query('status').optional().isIn(['Pending', 'InProgress', 'Approved', 'Rejected', 'PENDING', 'IN_PROGRESS', 'APPROVED', 'REJECTED']),
+        query('entityType').optional().isIn(['HouseholdHelp', 'EmergencyContact', 'Tenant', 'SeniorCitizen', 'Other']),
         query('assignedTo').optional().trim(),
         query('seniorCitizenId').optional().trim(),
         query('priority').optional().isIn(['Low', 'Normal', 'High', 'Urgent']),
@@ -61,7 +63,7 @@ router.get(
     '/statistics',
     requirePermission(Permission.CITIZENS_READ),
     [
-        query('entityType').optional().isIn(['HouseholdHelp', 'EmergencyContact', 'Tenant', 'Other']),
+        query('entityType').optional().isIn(['HouseholdHelp', 'EmergencyContact', 'Tenant', 'SeniorCitizen', 'Other']),
         query('assignedTo').optional().trim(),
         validate
     ],
@@ -85,12 +87,12 @@ router.get(
 
 /**
  * @route   PATCH /api/v1/verifications/:id/assign
- * @desc    Assign verification request to officer
- * @access  Private (ADMIN or SUPER_ADMIN)
+ * @desc    Assign verification request to officer (by SHO / Admin)
+ * @access  Private (VISITS_SCHEDULE, CITIZENS_WRITE, or OFFICERS_MANAGE permission)
  */
 router.patch(
     '/:id/assign',
-    requireRole([Role.ADMIN, Role.SUPER_ADMIN]),
+    requireAnyPermission([Permission.VISITS_SCHEDULE, Permission.CITIZENS_WRITE, Permission.OFFICERS_MANAGE]),
     [
         ValidationRules.id('id'),
         body('officerId').trim().notEmpty().withMessage('Officer ID required'),

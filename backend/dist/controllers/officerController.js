@@ -53,6 +53,10 @@ class OfficerController {
                 exactMatchFields: ['policeStationId', 'beatId'],
                 booleanFields: ['isActive']
             });
+            // Handle 'hasBeat' filter
+            if (req.query.hasBeat === 'true') {
+                where.beatId = { not: null };
+            }
             // Apply Data Scope
             const scope = req.dataScope;
             if (scope && scope.level !== 'ALL') {

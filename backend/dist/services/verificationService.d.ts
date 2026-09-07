@@ -32,6 +32,7 @@ export declare const createVerificationRequest: (data: CreateVerificationRequest
     status: import(".prisma/client").$Enums.VerificationStatus;
     createdAt: Date;
     updatedAt: Date;
+    seniorCitizenId: string;
     documents: string[];
     priority: string;
     entityType: string;
@@ -45,7 +46,6 @@ export declare const createVerificationRequest: (data: CreateVerificationRequest
     verificationMethod: string | null;
     verificationNotes: string | null;
     rejectionReason: string | null;
-    seniorCitizenId: string;
 }>;
 /**
  * Assign verification request to an officer
@@ -60,10 +60,14 @@ export declare const assignVerificationRequest: (requestId: string, officerId: s
         createdAt: Date;
         updatedAt: Date;
         isActive: boolean;
+        policeStationId: string | null;
+        beatId: string | null;
+        vulnerabilityLevel: string;
+        districtId: string | null;
+        fullName: string;
         aadhaarNumber: string | null;
         registrationNo: string | null;
         srCitizenUniqueId: string | null;
-        fullName: string;
         dateOfBirth: Date;
         age: number;
         gender: string;
@@ -88,10 +92,7 @@ export declare const assignVerificationRequest: (requestId: string, officerId: s
         gpsLongitude: number | null;
         landmark: string | null;
         rangeId: string | null;
-        districtId: string | null;
         subDivisionId: string | null;
-        policeStationId: string | null;
-        beatId: string | null;
         livingArrangementId: string | null;
         livingArrangement: string | null;
         numberOfChildren: number | null;
@@ -116,7 +117,6 @@ export declare const assignVerificationRequest: (requestId: string, officerId: s
         freeTime: string | null;
         visitNotes: string | null;
         lastVisitDate: Date | null;
-        vulnerabilityLevel: string;
         interestedServices: string[];
         consentServiceRequest: boolean;
         consentDataUse: boolean;
@@ -189,6 +189,7 @@ export declare const assignVerificationRequest: (requestId: string, officerId: s
     status: import(".prisma/client").$Enums.VerificationStatus;
     createdAt: Date;
     updatedAt: Date;
+    seniorCitizenId: string;
     documents: string[];
     priority: string;
     entityType: string;
@@ -202,7 +203,6 @@ export declare const assignVerificationRequest: (requestId: string, officerId: s
     verificationMethod: string | null;
     verificationNotes: string | null;
     rejectionReason: string | null;
-    seniorCitizenId: string;
 }>;
 /**
  * Update verification status
@@ -212,6 +212,7 @@ export declare const updateVerificationStatus: (requestId: string, updateData: U
     status: import(".prisma/client").$Enums.VerificationStatus;
     createdAt: Date;
     updatedAt: Date;
+    seniorCitizenId: string;
     documents: string[];
     priority: string;
     entityType: string;
@@ -225,7 +226,6 @@ export declare const updateVerificationStatus: (requestId: string, updateData: U
     verificationMethod: string | null;
     verificationNotes: string | null;
     rejectionReason: string | null;
-    seniorCitizenId: string;
 }>;
 /**
  * Get verification requests with filters
@@ -248,6 +248,7 @@ export declare const getVerificationRequests: (filters: {
     status: import(".prisma/client").$Enums.VerificationStatus;
     createdAt: Date;
     updatedAt: Date;
+    seniorCitizenId: string;
     documents: string[];
     priority: string;
     entityType: string;
@@ -261,7 +262,6 @@ export declare const getVerificationRequests: (filters: {
     verificationMethod: string | null;
     verificationNotes: string | null;
     rejectionReason: string | null;
-    seniorCitizenId: string;
 })[]>;
 /**
  * Get verification statistics

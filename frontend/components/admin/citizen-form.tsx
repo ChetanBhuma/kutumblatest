@@ -96,6 +96,8 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
         pinCode: '',
         districtId: '',
         policeStationId: '',
+        addressType: 'HOME',
+        customAddressType: '',
         permanentAddress: '', // Combined if needed, but we use lines
         presentAddress: '',
         addressProofUrl: '',
@@ -156,9 +158,7 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
                     const res = await apiClient.getCitizenById(citizenId);
                     const c = res.data.citizen;
 
-                    console.log('DEBUG: Loaded Citizen Data:', c);
-                    console.log('DEBUG: EmergencyContacts:', c.emergencyContacts, c.EmergencyContacts, c.EmergencyContact);
-                    console.log('DEBUG: FamilyMembers:', c.familyMembers, c.FamilyMembers, c.FamilyMember);
+
 
                     setFormData({
                         // Personal
@@ -182,6 +182,8 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
                         email: c.email || '',
 
                         // Address
+                        addressType: ['HOME', 'WORK', 'HOTEL'].includes(c.addressType || '') ? (c.addressType || 'HOME') : (c.addressType ? 'Other' : 'HOME'),
+                        customAddressType: ['HOME', 'WORK', 'HOTEL'].includes(c.addressType || '') ? '' : (c.addressType || ''),
                         addressLine1: c.addressLine1 || '',
                         addressLine2: c.addressLine2 || '',
                         city: c.city || 'New Delhi',
@@ -483,6 +485,7 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
                 residingWith: formData.residingWith,
 
                 // Address - Composed exactly like profile-completion-form.tsx
+                addressType: formData.addressType === 'Other' ? (formData.customAddressType?.trim() || 'Other') : (formData.addressType || 'HOME'),
                 addressLine1: formData.addressLine1,
                 addressLine2: formData.addressLine2,
                 pinCode: formData.pinCode,
@@ -556,26 +559,26 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
             Object.keys(payload).forEach(key => (payload as any)[key] === undefined && delete (payload as any)[key]);
 
 
-            console.log('Final Payload:', JSON.stringify(payload, null, 2));
+
 
             let finalCitizenId = citizenId; // For edit mode
 
             if (mode === 'create') {
                 // 1. Create Citizen
-                console.log('Step 1: Creating citizen...');
+
                 const res = await apiClient.createCitizen(payload);
                 finalCitizenId = res.data?.citizen?.id;
-                console.log('Citizen created with ID:', finalCitizenId);
+
                 if (!finalCitizenId) throw new Error("Failed to create citizen");
             } else {
                 // 1. Update Citizen
-                console.log('Step 1: Updating citizen...');
+
                 await apiClient.updateCitizen(citizenId!, payload);
-                console.log('Citizen updated with ID:', citizenId);
+
             }
 
             // 2. Upload Files (for both create and edit)
-            console.log('Step 2: Uploading files...');
+
             let newPhotoUrl = '';
             if (photoFile) {
                 try {
@@ -599,7 +602,7 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
             }
 
             // 3. Handle Staff Docs
-            console.log('Step 3: Handling staff documents...');
+
             const finalStaff = [];
             for (let i = 0; i < formData.householdHelp.length; i++) {
                 const staff = formData.householdHelp[i];
@@ -618,7 +621,7 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
             }
 
             // 4. Update Citizen with URLs and Staff (if any files were uploaded)
-            console.log('Step 4: Updating citizen with documents...');
+
             if (newPhotoUrl || newAddrUrl || finalStaff.length > 0) {
                 await apiClient.updateCitizen(finalCitizenId!, {
                     photoUrl: newPhotoUrl || undefined,
@@ -630,7 +633,7 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
             }
 
 
-            console.log('Step 5: Showing success toast and calling onSuccess...');
+
             toast({
                 title: mode === 'create' ? "Citizen Registered Successfully" : "Profile Updated Successfully",
                 description: mode === 'create' ? `Citizen ID: ${finalCitizenId}. Verification request sent to beat officer.` : "Citizen profile has been updated.",
@@ -644,12 +647,8 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
 
 
         } catch (error: any) {
-            console.error('=== SUBMISSION ERROR ===');
-            console.error('Error Object:', error);
+            console.error('Submission error:', error);
             if (error.response) {
-                console.error('Response Status:', error.response.status);
-                console.error('Response Data:', JSON.stringify(error.response.data, null, 2));
-                console.error('Response Headers:', error.response.headers);
 
                 // Extract detailed error message
                 const errorMessage = error.response.data?.message
@@ -852,6 +851,41 @@ export function CitizenForm({ mode, citizenId, onSuccess }: CitizenFormProps) {
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="md:col-span-2 space-y-3 p-3.5 bg-slate-50 border border-slate-200 rounded-xl">
+                                    <div className="space-y-1.5">
+                                        <Label className="text-sm font-semibold text-slate-800 flex items-center gap-1.5">
+                                            <Home className="w-4 h-4 text-blue-600" /> Save Address As <span className="text-red-500">*</span>
+                                        </Label>
+                                        <Select
+                                            value={formData.addressType || 'HOME'}
+                                            onValueChange={v => updateField('addressType', v)}
+                                        >
+                                            <SelectTrigger className="bg-white border-slate-300">
+                                                <SelectValue placeholder="Select Address Type" />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="HOME">🏠 HOME</SelectItem>
+                                                <SelectItem value="WORK">💼 WORK</SelectItem>
+                                                <SelectItem value="HOTEL">🏨 HOTEL</SelectItem>
+                                                <SelectItem value="Other">📍 Other</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </div>
+
+                                    {formData.addressType === 'Other' && (
+                                        <div className="space-y-1.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                            <Label className="text-xs font-semibold text-slate-700">Specify Address Type / Name <span className="text-red-500">*</span></Label>
+                                            <Input
+                                                value={formData.customAddressType || ''}
+                                                onChange={e => updateField('customAddressType', e.target.value)}
+                                                placeholder="E.g. Farmhouse, Son's Residence, Vacation Home"
+                                                className="bg-white border-slate-300"
+                                                required={formData.addressType === 'Other'}
+                                            />
+                                        </div>
+                                    )}
+                                </div>
+
                                 <div className="md:col-span-2 space-y-2">
                                     <Label>Address Line 1 <span className="text-red-500">*</span></Label>
                                     <Textarea value={formData.addressLine1} onChange={e => updateField('addressLine1', e.target.value)} />

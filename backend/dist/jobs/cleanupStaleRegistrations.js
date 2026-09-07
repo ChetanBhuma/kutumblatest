@@ -23,12 +23,10 @@ const cleanupStaleRegistrations = async () => {
             select: { id: true, mobileNumber: true }
         });
         if (staleCitizens.length === 0) {
-            console.log('No stale registrations found.');
             return;
         }
-        console.log(`Found ${staleCitizens.length} stale registrations. Purging...`);
         // Transactional delete? Or just bulk delete.
-        // We might need to delete linked Auth/Registration first if cascading isn't set up, 
+        // We might need to delete linked Auth/Registration first if cascading isn't set up,
         // but typically we want to keep registration history but maybe unlink citizen.
         // Actually, if it's "Unknown", it's junk.
         // Let's delete them.
@@ -42,7 +40,7 @@ const cleanupStaleRegistrations = async () => {
                     console.warn(`Skipping citizen ${citizen.id} (${citizen.mobileNumber}) as they have visits.`);
                     continue;
                 }
-                // Delete linked Auth if it exists and is not verified? 
+                // Delete linked Auth if it exists and is not verified?
                 // Using transaction for safety
                 await database_1.prisma.$transaction(async (tx) => {
                     // Update Registration to remove link or set to expired
@@ -60,7 +58,6 @@ const cleanupStaleRegistrations = async () => {
                         where: { id: citizen.id }
                     });
                 });
-                console.log(`Purged citizen ${citizen.id}`);
             }
             catch (err) {
                 console.error(`Failed to purge citizen ${citizen.id}:`, err);

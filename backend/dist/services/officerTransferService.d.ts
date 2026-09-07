@@ -19,10 +19,10 @@ export declare class OfficerTransferService {
             updatedAt: Date;
             isActive: boolean;
             description: string | null;
-            rangeId: string | null;
-            districtId: string | null;
-            subDivisionId: string | null;
             policeStationId: string;
+            districtId: string | null;
+            rangeId: string | null;
+            subDivisionId: string | null;
             beatNumber: string | null;
             exactLocation: string | null;
             landArea: string | null;
@@ -36,13 +36,13 @@ export declare class OfficerTransferService {
         createdAt: Date;
         updatedAt: Date;
         isActive: boolean;
-        rangeId: string | null;
-        districtId: string | null;
-        subDivisionId: string | null;
         policeStationId: string | null;
         beatId: string | null;
+        districtId: string | null;
         rank: string;
         badgeNumber: string;
+        rangeId: string | null;
+        subDivisionId: string | null;
         designationId: string | null;
     }) | null>;
     /**

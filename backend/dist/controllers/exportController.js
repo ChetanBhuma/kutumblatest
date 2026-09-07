@@ -31,6 +31,11 @@ class ExportController {
             const citizens = await database_1.prisma.seniorCitizen.findMany({
                 where,
                 include: {
+                    PoliceStation: {
+                        include: {
+                            District: true
+                        }
+                    },
                     Beat: {
                         include: {
                             PoliceStation: {

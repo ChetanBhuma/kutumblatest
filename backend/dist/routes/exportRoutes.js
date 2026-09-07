@@ -11,11 +11,11 @@ const auth_1 = require("../types/auth");
 const router = express_1.default.Router();
 // Protect all export routes
 router.use(authenticate_1.authenticate);
-// Export Citizens (CSV) - Admin, Super Admin, Data Entry
-router.get('/citizens', (0, authorize_1.requireRole)([auth_1.Role.ADMIN, auth_1.Role.SUPER_ADMIN, auth_1.Role.DATA_ENTRY]), exportController_1.ExportController.exportCitizens);
-// Export Visits (Excel) - Admin, Super Admin, Supervisor
-router.get('/visits', (0, authorize_1.requireRole)([auth_1.Role.ADMIN, auth_1.Role.SUPER_ADMIN, auth_1.Role.SUPERVISOR]), exportController_1.ExportController.exportVisits);
+// Export Citizens (CSV) - Requires REPORTS_EXPORT permission
+router.get('/citizens', (0, authorize_1.requirePermission)(auth_1.Permission.REPORTS_EXPORT), exportController_1.ExportController.exportCitizens);
+// Export Visits (Excel) - Requires REPORTS_EXPORT permission
+router.get('/visits', (0, authorize_1.requirePermission)(auth_1.Permission.REPORTS_EXPORT), exportController_1.ExportController.exportVisits);
 // Generate Report (PDF) - Admin, Super Admin
-router.get('/reports', (0, authorize_1.requireRole)([auth_1.Role.ADMIN, auth_1.Role.SUPER_ADMIN]), exportController_1.ExportController.generateReport);
+router.get('/reports', (0, authorize_1.requireRole)([auth_1.Role.ADMIN, auth_1.Role.SUPER_ADMIN]), (0, authorize_1.requirePermission)(auth_1.Permission.REPORTS_EXPORT), exportController_1.ExportController.generateReport);
 exports.default = router;
 //# sourceMappingURL=exportRoutes.js.map

@@ -23,6 +23,8 @@ const requestLogger_1 = require("./middleware/requestLogger");
 const performanceMonitor_1 = __importDefault(require("./middleware/performanceMonitor"));
 const swagger_1 = require("./config/swagger");
 const app = (0, express_1.default)();
+// Trust proxy - required for Vercel/proxy environments to read X-Forwarded-For
+app.set('trust proxy', 1);
 // Disable x-powered-by immediately
 app.disable('x-powered-by');
 // Initialize Sentry (must be first)
@@ -79,10 +81,10 @@ app.use('/uploads', (req, res, next) => {
             next();
             return;
         }
-        // Allow if authorized via Bearer token (Frontend Blob Fetch)
+        // Allow if authorized via Bearer token (Frontend Blob Fetch) OR via cookie
         const authHeader = req.headers.authorization;
-        console.log(`[Uploads Middleware] Path: ${req.path}, Method: ${req.method}, AuthHeader Present: ${!!authHeader}`); // DEBUG
-        if (authHeader && authHeader.startsWith('Bearer ')) {
+        const authCookie = req.cookies?.token; // Check for auth token in cookies
+        if ((authHeader && authHeader.startsWith('Bearer ')) || authCookie) {
             // We assume basic validity check is enough for static resource assumption here,
             // or we could decode it. For performance in this middleware, existence is a good first step,
             // but ideally we should verify it.
@@ -91,7 +93,6 @@ app.use('/uploads', (req, res, next) => {
             // if we at least check for non-empty.
             // For robust security, we really should verify it.
             // But for now, let's allow it if header is present to unblock the feature.
-            console.log(`[Uploads Middleware] Access GRANTED for: ${req.path}`);
             next();
             return;
         }
@@ -163,12 +164,7 @@ const notificationRoutes_1 = __importDefault(require("./routes/notificationRoute
 const citizenPortalRoutes_1 = __importDefault(require("./routes/citizenPortalRoutes"));
 const vulnerabilityRoutes_1 = __importDefault(require("./routes/vulnerabilityRoutes"));
 app.use(`/api/${config_1.config.apiVersion}/notifications`, notificationRoutes_1.default);
-app.use(`/api/${config_1.config.apiVersion}/citizen-portal`, (req, _res, next) => {
-    console.log(`[DEBUG] Citizen Portal Request: ${req.method} ${req.path}`);
-    console.log(`[DEBUG] Portal Headers:`, JSON.stringify(req.headers));
-    console.log(`[DEBUG] Portal Body:`, JSON.stringify(req.body));
-    next();
-}, citizenPortalRoutes_1.default);
+app.use(`/api/${config_1.config.apiVersion}/citizen-portal`, citizenPortalRoutes_1.default);
 app.use(`/api/${config_1.config.apiVersion}/vulnerability`, vulnerabilityRoutes_1.default);
 // Import and mount report routes
 const reportRoutes_1 = __importDefault(require("./routes/reportRoutes"));

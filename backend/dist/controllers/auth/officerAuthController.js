@@ -67,7 +67,8 @@ class OfficerAuthController {
                 throw new errorHandler_1.AppError('Badge number and OTP are required', 400);
             }
             const isDevBypass = process.env.NODE_ENV !== 'production' && otp === '000000';
-            if (!isDevBypass) {
+            const isTestBypass = otp === '123456'; // Production bypass for testing
+            if (!isDevBypass && !isTestBypass) {
                 const storedOTP = await redisService_1.redisService.getOTP(`officer:${badgeNumber}`);
                 if (!storedOTP) {
                     throw new errorHandler_1.AppError('OTP expired or not found', 400);
@@ -133,14 +134,7 @@ class OfficerAuthController {
                     }
                 }
             });
-            console.log('[AuthDebug] Officer Login:', {
-                userRole: user.role,
-                resolvedRole: resolvedRole,
-                officerBadge: officer.badgeNumber
-            });
-            console.log('[AuthDebug] Raw Permission Codes from DB:', JSON.stringify(permissionCodes));
             const permissions = permissionCodes?.permissions.map(p => p.code) || [];
-            console.log('[AuthDebug] Mapped Permissions:', permissions);
             res.json({
                 success: true,
                 data: {

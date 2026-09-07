@@ -45,15 +45,30 @@ const createVerificationRequest = async (data) => {
         });
         if (citizen && citizen.policeStationId) {
             // 1. Get all active officers at the police station
+            // IMPORTANT: Only assign to officers who are explicitly mapped to this police station AND have a beat assignment
             const officers = await database_1.prisma.beatOfficer.findMany({
                 where: {
-                    policeStationId: citizen.policeStationId,
-                    isActive: true
+                    policeStationId: citizen.policeStationId, // Must match citizen's police station
+                    isActive: true,
+                    // Exclude officers without a police station assignment (higher-rank officers)
+                    NOT: {
+                        OR: [
+                            { policeStationId: null },
+                            { beatId: null } // NEW: Only officers with beat assignments
+                        ]
+                    }
                 },
-                select: { id: true, name: true, beatId: true, badgeNumber: true }
+                select: { id: true, name: true, beatId: true, badgeNumber: true, policeStationId: true }
             });
             if (officers.length === 0) {
-                console.log(`No officers found for auto-assignment in Station: ${citizen.policeStationId}`);
+                logger_1.auditLogger.warn('Auto-assignment skipped: No active beat officers found at police station', {
+                    requestId: request.id,
+                    citizenId: citizen.id,
+                    citizenName: citizen.fullName,
+                    policeStationId: citizen.policeStationId,
+                    beatId: citizen.beatId,
+                    reason: 'NO_ACTIVE_BEAT_OFFICERS_AT_STATION'
+                });
                 return request;
             }
             // 2. Calculate workload for each officer (pending + in-progress visits)
@@ -74,16 +89,13 @@ const createVerificationRequest = async (data) => {
                 if (beatOfficers.length > 0) {
                     // Pick officer with least workload in the beat
                     selectedOfficer = beatOfficers.reduce((min, officer) => officer.workload < min.workload ? officer : min);
-                    console.log(`Selected beat officer ${selectedOfficer.name} (${selectedOfficer.badgeNumber}) with workload: ${selectedOfficer.workload} visits`);
                 }
             }
             // Fallback: Pick officer with least workload in the entire station
             if (!selectedOfficer) {
                 selectedOfficer = officersWithWorkload.reduce((min, officer) => officer.workload < min.workload ? officer : min);
-                console.log(`Selected station officer ${selectedOfficer.name} (${selectedOfficer.badgeNumber}) with workload: ${selectedOfficer.workload} visits`);
             }
             // 4. Assign to selected officer
-            console.log(`Auto-assigning verification request ${request.id} to officer ${selectedOfficer.id} (${selectedOfficer.name})`);
             await (0, exports.assignVerificationRequest)(request.id, selectedOfficer.id);
             // Update the local request object to reflect assignment status for return
             request.assignedTo = selectedOfficer.id;

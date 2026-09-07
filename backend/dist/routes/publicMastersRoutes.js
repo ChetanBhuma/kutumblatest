@@ -118,16 +118,19 @@ router.get('/police-stations', async (_req, res) => {
         res.status(500).json({ success: false, message: 'Failed to fetch police stations' });
     }
 });
+// SECURITY: Disabled public beats endpoint to prevent data leakage.
+// Roster page now uses authenticated /api/v1/beats
+/*
 router.get('/beats', async (_req, res) => {
     try {
         const data = await prisma.beat.findMany({ where: { isActive: true } });
         res.json({ success: true, data });
-    }
-    catch (error) {
+    } catch (error) {
         console.error('Failed to fetch beats:', error);
         res.status(500).json({ success: false, message: 'Failed to fetch beats' });
     }
 });
+*/
 router.get('/marital-statuses', async (_req, res) => {
     try {
         const data = await prisma.maritalStatus.findMany({ where: { isActive: true } });

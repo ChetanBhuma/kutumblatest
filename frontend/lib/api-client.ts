@@ -22,7 +22,6 @@ class ApiClient {
                 // Allow skipping auth header for specific requests
                 if (config.headers?.skipAuth) {
                     delete config.headers.skipAuth;
-                    console.log('DEBUG: Skipping Auth for', config.url);
                     return config;
                 }
 
@@ -31,7 +30,11 @@ class ApiClient {
                     config.headers.Authorization = `Bearer ${token}`;
                 }
 
-                console.log('DEBUG: Request Headers:', config.url, config.headers);
+                // If data is FormData, remove Content-Type so browser can set multipart/form-data with boundary
+                if (config.data instanceof FormData && config.headers) {
+                    delete config.headers['Content-Type'];
+                }
+
                 return config;
             },
             (error) => Promise.reject(error)
@@ -81,6 +84,16 @@ class ApiClient {
                             window.location.href = loginPath;
                         }
                         return Promise.reject(refreshError);
+                    }
+                }
+
+                // Handle 429 Rate Limiting with backoff retry
+                if (error.response?.status === 429 && originalRequest) {
+                    originalRequest._retry429Count = (originalRequest._retry429Count || 0) + 1;
+                    if (originalRequest._retry429Count <= 2) {
+                        const backoffDelay = originalRequest._retry429Count * 600;
+                        await new Promise(resolve => setTimeout(resolve, backoffDelay));
+                        return this.client(originalRequest);
                     }
                 }
 
@@ -317,7 +330,7 @@ class ApiClient {
                         // If standard upload, it is folder/file.
 
                         fullUrl = `${this.baseURL}/files/serve/${folder}/${filename}`;
-                        console.log(`[ViewDocument] Converted static URL to API: ${fullUrl}`);
+
                     }
                 }
             } else {
@@ -326,7 +339,7 @@ class ApiClient {
                     : `${window.location.origin}${fileUrl.startsWith('/') ? '' : '/'}${fileUrl}`;
             }
 
-            console.log(`[ViewDocument] Fetching securely: ${fullUrl}`);
+
 
             const response = await fetch(fullUrl, {
                 headers: {
@@ -364,18 +377,14 @@ class ApiClient {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('documentType', documentType);
-        return this.post<any>('/citizen-profile/documents', formData, {
-            headers: { 'Content-Type': null }
-        });
+        return this.post<any>('/citizen-profile/documents', formData);
     }
 
     async uploadCitizenDocument(citizenId: string, file: File, documentType: string) {
         const formData = new FormData();
         formData.append('file', file);
         formData.append('documentType', documentType);
-        return this.post<any>(`/citizens/${citizenId}/documents`, formData, {
-            headers: { 'Content-Type': null }
-        });
+        return this.post<any>(`/citizens/${citizenId}/documents`, formData);
     }
 
     // Citizen APIs
@@ -550,9 +559,11 @@ class ApiClient {
     }
 
     async uploadMyDocument(formData: FormData) {
-        return this.post<any>('/citizen-profile/documents', formData, {
-            headers: { 'Content-Type': 'multipart/form-data' }
-        });
+        return this.post<any>('/citizen-profile/documents', formData);
+    }
+
+    async deleteMyDocument(id: string) {
+        return this.delete<any>(`/citizen-profile/documents/${id}`);
     }
 
     async updateMyNotifications(preferences: any) {
@@ -589,7 +600,7 @@ class ApiClient {
 
         // Explicitly store tokens to ensure persistence
         if (result.data && result.data.accessToken) {
-            console.log('DEBUG: Storing registration tokens', result.data);
+
             this.setAccessToken(result.data.accessToken);
             if (result.data.refreshToken) {
                 this.setRefreshToken(result.data.refreshToken);
@@ -634,6 +645,14 @@ class ApiClient {
 
     async updateVisitRequest(id: string, status: string) {
         return this.patch<any>(`/citizen-portal/visit-requests/${id}`, { status });
+    }
+
+    async getVerificationRequests(params?: any) {
+        return this.get<any>('/verifications', { params });
+    }
+
+    async assignVerificationRequest(id: string, data: { officerId: string; scheduledDate?: string; notes?: string }) {
+        return this.patch<any>(`/verifications/${id}/assign`, data);
     }
 
     // Vulnerability configuration APIs
@@ -730,8 +749,11 @@ class ApiClient {
         return this.post<any>(`/visits/${id}/complete`, data);
     }
 
-    async cancelVisit(id: string, reason: string) {
-        return this.post<any>(`/visits/${id}/cancel`, { reason });
+    async cancelVisit(id: string, reasonOrData?: string | { reason?: string }) {
+        const payload = typeof reasonOrData === 'string'
+            ? { reason: reasonOrData }
+            : (reasonOrData || { reason: 'Cancelled by staff/officer' });
+        return this.post<any>(`/visits/${id}/cancel`, payload);
     }
 
     async getCalendar(startDate: string, endDate: string, params?: any) {
@@ -992,6 +1014,23 @@ class ApiClient {
      */
     async deleteCategory(id: string) {
         return this.delete<any>(`/permissions/categories/${id}`);
+    }
+
+    // Notification APIs
+    async getNotifications(page = 1, limit = 20) {
+        return this.get<any>('/notifications', { params: { page, limit } });
+    }
+
+    async markNotificationRead(id: string) {
+        return this.patch<any>(`/notifications/${id}/read`);
+    }
+
+    async markAllNotificationsRead() {
+        return this.patch<any>('/notifications/read-all');
+    }
+
+    async deleteNotification(id: string) {
+        return this.delete<any>(`/notifications/${id}`);
     }
 }
 

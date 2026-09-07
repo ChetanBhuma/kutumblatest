@@ -13,9 +13,9 @@ import Link from 'next/link';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
-import { normalizeMobileNumber } from "@/lib/utils";
-import { MapPin, Upload, X, Eye } from 'lucide-react';
+import { MapPin, Upload, X, Eye, Home, UserPlus } from 'lucide-react';
 import { findFeatureContainingPoint, findNearestPoliceStation } from '@/lib/delhi-police-geofence';
+import { normalizeMobileNumber } from '@/lib/utils';
 
 type Step = 'start' | 'otp' | 'details';
 
@@ -42,13 +42,15 @@ function RegistrationContent() {
     const [startForm, setStartForm] = useState({
         mobileNumber: '',
         fullName: '',
-        dateOfBirth: ''
+        dateOfBirth: '1960-01-01'
     });
     const [showDisclaimer, setShowDisclaimer] = useState(false);
 
     // Step 3: Details State
     const [detailsForm, setDetailsForm] = useState({
         residingWith: 'Alone',
+        addressType: 'HOME',
+        customAddressType: '',
         addressLine1: '',
         addressLine2: '',
         pincode: '',
@@ -199,7 +201,7 @@ function RegistrationContent() {
         navigator.geolocation.getCurrentPosition(
             async (position) => {
                 const { latitude, longitude, accuracy } = position.coords;
-                console.log("GPS Position Acquired:", latitude, longitude, "Accuracy:", accuracy);
+
 
                 setLocationState({
                     lat: latitude,
@@ -211,17 +213,17 @@ function RegistrationContent() {
 
                 // 2. Auto-detect Police Station via Geofence (Robust Logic from Profile Completion)
                 try {
-                    console.log("Fetching boundaries...");
+
                     const boundaries = await apiClient.get('/geo/boundaries');
 
                     if (boundaries && (boundaries as any).features) { // GeoJSON object
                         const feature = findFeatureContainingPoint(latitude, longitude, boundaries as any);
 
                         if (feature && feature.properties) {
-                            console.log('Found PS Feature Properties:', feature.properties);
+
                             // Property keys from backend/jsongeo/Police Station Boundary.geojson
                             const psName = feature.properties.POL_STN_NM || feature.properties.NAME || feature.properties.Name || feature.properties.name;
-                            console.log('Extracted PS Name:', psName);
+
 
                             if (psName && policeStations.length > 0) {
                                 // Clean PS Name (remove 'PS ' prefix if present for better matching)
@@ -235,7 +237,7 @@ function RegistrationContent() {
                                 });
 
                                 if (matchedPS) {
-                                    console.log('Matched PS Object:', matchedPS);
+
                                     setDetailsForm(prev => ({
                                         ...prev,
                                         policeStation: matchedPS.id,
@@ -258,7 +260,7 @@ function RegistrationContent() {
                                     }
                                     toast({ title: "Location Detected", description: `Jurisdiction: ${matchedPS.name}` });
                                 } else {
-                                    console.log('PS Name found but not in Masters:', psName);
+
                                     // Fallback: If District property exists
                                     const distName = feature.properties.DIST_NM || feature.properties.DISTRICT || feature.properties.District;
                                     if (distName && districts.length > 0) {
@@ -303,7 +305,7 @@ function RegistrationContent() {
                     const data = await response.json();
 
                     if (data && data.address) {
-                        console.log("Reverse Geocoding Result:", data);
+
                         setDetailsForm(prev => ({
                             ...prev,
                             addressLine1: [data.address.house_number, data.address.building, data.address.floor].filter(Boolean).join(', ') || prev.addressLine1,
@@ -389,28 +391,29 @@ function RegistrationContent() {
 
                 addressLine1: detailsForm.addressLine1,
                 addressLine2: detailsForm.addressLine2,
+                addressType: detailsForm.addressType === 'Other' ? (detailsForm.customAddressType.trim() || 'Other') : detailsForm.addressType,
+                city: detailsForm.city || 'Delhi',
+                state: 'Delhi',
 
                 districtId: detailsForm.district,
                 policeStationId: detailsForm.policeStation,
 
                 residingWith: detailsForm.residingWith,
-                gender: detailsForm.gender || 'Other',
+                gender: detailsForm.gender === 'MALE' ? 'Male' : detailsForm.gender === 'FEMALE' ? 'Female' : (detailsForm.gender || 'Other'),
+                religion: detailsForm.religion || null,
+                aadhaarNumber: detailsForm.aadhaarNumber || null,
 
                 // Emergency Contact Mapping (Controller expects flat fields for single entry)
                 relativeName: detailsForm.emergencyContactName,
                 contactNo: detailsForm.emergencyContactNumber,
                 relation: detailsForm.emergencyContactRelation || 'Relative',
 
-                // GPS & Documents (Controller doesn't explicitly map these to citizen profile yet,
-                // but we send them in case extended logic picks them up or for debugging)
+                // GPS & Documents (Controller maps these to citizen profile)
                 gpsLatitude: locationState.lat,
                 gpsLongitude: locationState.lng,
                 pincode: detailsForm.pincode,
                 addressProofUrl: detailsForm.addressProofUrl
             };
-
-            // Log payload for debugging
-            console.log('Submitting payload:', payload);
 
             const response = await apiClient.submitCitizenRegistration(registration.id, payload);
 
@@ -462,48 +465,49 @@ function RegistrationContent() {
             case 'start':
                 return (
                     <>
-                        <form onSubmit={handleStart} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                            <div className="rounded-xl border-2 border-blue-100 bg-blue-50 p-6 text-lg text-blue-900 leading-relaxed">
-                                <p className="font-medium">Welcome to the Delhi Police Senior Citizen Cell.</p>
-                                <p className="mt-2">
-                                    Enter your mobile number and date of birth to get started.
+                        <form onSubmit={handleStart} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                            <div className="rounded-xl border border-blue-100 bg-blue-50/80 p-4 sm:p-5 text-sm sm:text-base text-blue-900 leading-relaxed">
+                                <p className="font-semibold text-blue-950">Welcome to the Delhi Police Senior Citizen Cell.</p>
+                                <p className="mt-1 text-slate-600">
+                                    Enter your mobile number and date of birth to start your safety registration.
                                 </p>
                             </div>
 
-                            <div className="space-y-4">
-                                <Label className="text-xl font-bold text-slate-900">Mobile Number</Label>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-slate-800">Mobile Number <span className="text-rose-500">*</span></Label>
                                 <Input
                                     value={startForm.mobileNumber}
                                     onChange={(e) => setStartForm((prev) => ({ ...prev, mobileNumber: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
-                                    placeholder="e.g., 98765 43210"
-                                    className="h-16 text-2xl tracking-wide border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded-lg"
+                                    placeholder="Enter 10-digit mobile number"
+                                    className="h-12 text-lg font-mono bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-[#0F52BA] focus:ring-2 focus:ring-[#0F52BA]/20 rounded-xl"
                                     required
                                     type="tel"
                                     maxLength={10}
                                     autoComplete="tel"
+                                    autoFocus
                                 />
-                                <p className="text-base text-slate-600">Enter your 10-digit mobile number.</p>
+                                <p className="text-xs text-slate-500">We will send an OTP to verify this number.</p>
                             </div>
 
-                            <div className="space-y-4">
-                                <Label className="text-xl font-bold text-slate-900">Date of Birth</Label>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-slate-800">Date of Birth <span className="text-rose-500">*</span></Label>
                                 <Input
                                     type="date"
                                     value={startForm.dateOfBirth}
                                     onChange={(e) => setStartForm((prev) => ({ ...prev, dateOfBirth: e.target.value }))}
-                                    className="h-16 text-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded-lg"
+                                    className="h-12 text-base bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-[#0F52BA] focus:ring-2 focus:ring-[#0F52BA]/20 rounded-xl"
                                     required
                                 />
-                                <p className="text-base text-slate-600">You must be 60 years or older.</p>
+                                <p className="text-xs text-slate-500">Senior citizen safety initiative is for residents aged 60 years or older.</p>
                             </div>
 
-                            <div className="space-y-4">
-                                <Label className="text-xl font-bold text-slate-900">Full Name (Optional)</Label>
+                            <div className="space-y-2">
+                                <Label className="text-sm font-semibold text-slate-800">Full Name (Optional)</Label>
                                 <Input
                                     value={startForm.fullName}
                                     onChange={(e) => setStartForm((prev) => ({ ...prev, fullName: e.target.value }))}
-                                    placeholder="Your Name"
-                                    className="h-16 text-xl border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded-lg"
+                                    placeholder="Enter your full name"
+                                    className="h-12 text-base bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 focus:border-[#0F52BA] focus:ring-2 focus:ring-[#0F52BA]/20 rounded-xl"
                                     autoComplete="name"
                                 />
                             </div>
@@ -511,37 +515,37 @@ function RegistrationContent() {
                             <Button
                                 type="submit"
                                 disabled={loading}
-                                className="w-full h-16 text-xl font-bold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-md transition-all hover:scale-[1.01]"
+                                className="w-full h-12 text-base font-bold bg-gradient-to-r from-[#0F52BA] to-[#720924] hover:from-[#0F52BA]/90 hover:to-[#720924]/90 text-white rounded-xl shadow-md transition-all duration-300"
                             >
-                                {loading ? 'Processing...' : 'Next'}
+                                {loading ? 'Processing...' : 'Proceed to Verification'}
                             </Button>
                         </form>
 
                         {/* Disclaimer Modal */}
                         {showDisclaimer && (
-                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-                                <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full p-6 animate-in fade-in zoom-in-95 duration-200">
-                                    <h3 className="text-2xl font-bold text-slate-900 mb-4">Relevant Information</h3>
-                                    <div className="space-y-4 text-lg text-slate-700 mb-8">
-                                        <p className="font-medium text-slate-900">Please read and check both conditions before proceeding:</p>
-                                        <ul className="list-disc pl-6 space-y-2">
+                            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+                                <div className="bg-white border border-slate-200 rounded-2xl shadow-2xl max-w-lg w-full p-6 text-slate-900 animate-in fade-in zoom-in-95 duration-200">
+                                    <h3 className="text-xl font-bold text-slate-900 mb-3">Important Eligibility Information</h3>
+                                    <div className="space-y-3 text-sm text-slate-700 mb-6 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                                        <p className="font-semibold text-[#0F52BA]">Please review both criteria before proceeding:</p>
+                                        <ul className="list-disc pl-5 space-y-2 text-slate-700 text-xs sm:text-sm">
                                             <li>Person aged 60 years or above and residing alone or only with spouse.</li>
-                                            <li>Person aged 60 years or above though living with family but remain alone for a long time during daytime.</li>
+                                            <li>Person aged 60 years or above though living with family but remaining alone during daytime.</li>
                                         </ul>
                                     </div>
-                                    <div className="flex gap-4">
+                                    <div className="flex gap-3">
                                         <Button
                                             onClick={() => setShowDisclaimer(false)}
                                             variant="outline"
-                                            className="flex-1 h-14 text-lg font-semibold border-2"
+                                            className="flex-1 h-11 border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                                         >
                                             Close
                                         </Button>
                                         <Button
                                             onClick={handleDisclaimerAccept}
-                                            className="flex-1 h-14 text-lg font-bold bg-blue-700 hover:bg-blue-800 text-white"
+                                            className="flex-1 h-11 font-bold bg-gradient-to-r from-[#0F52BA] to-[#720924] text-white"
                                         >
-                                            Next
+                                            Accept & Continue
                                         </Button>
                                     </div>
                                 </div>
@@ -551,29 +555,30 @@ function RegistrationContent() {
                 );
             case 'otp':
                 return (
-                    <form onSubmit={handleOtpVerification} className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                        <div className="text-lg text-slate-700">
-                            We have sent a 6-digit code to <span className="font-bold text-slate-900">{startForm.mobileNumber || registration?.mobileNumber}</span>.
+                    <form onSubmit={handleOtpVerification} className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                        <div className="text-sm text-slate-700 bg-slate-50 p-4 rounded-xl border border-slate-200">
+                            We have sent a 6-digit verification code to <span className="font-bold text-slate-900 font-mono">{startForm.mobileNumber || registration?.mobileNumber}</span>.
                         </div>
 
-                        <div className="space-y-4">
-                            <Label className="text-xl font-bold text-slate-900">Enter Verification Code (OTP)</Label>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-slate-800">Enter Verification Code (OTP) <span className="text-rose-500">*</span></Label>
                             <Input
                                 value={otp}
                                 onChange={(e) => setOtp(e.target.value.replace(/\D/g, '').slice(0, 6))}
-                                placeholder="Enter 6-digit code"
-                                className="h-16 text-2xl tracking-[0.5em] font-mono text-center border-2 border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-200 rounded-lg"
+                                placeholder="------"
+                                className="h-14 text-2xl tracking-[0.4em] font-mono text-center bg-white border-slate-300 text-slate-900 focus:border-[#0F52BA] focus:ring-2 focus:ring-[#0F52BA]/20 rounded-xl"
                                 required
                                 maxLength={6}
                                 autoComplete="one-time-code"
+                                autoFocus
                             />
                         </div>
 
-                        <div className="flex flex-col gap-4 sm:flex-row">
+                        <div className="flex flex-col gap-3 sm:flex-row">
                             <Button
                                 type="submit"
-                                disabled={loading}
-                                className="flex-1 h-16 text-xl font-bold bg-blue-700 hover:bg-blue-800 text-white rounded-lg shadow-md"
+                                disabled={loading || otp.length < 6}
+                                className="flex-1 h-12 text-base font-bold bg-gradient-to-r from-[#0F52BA] to-[#720924] hover:from-[#0F52BA]/90 hover:to-[#720924]/90 text-white rounded-xl shadow-md"
                             >
                                 {loading ? 'Verifying...' : 'Verify Code'}
                             </Button>
@@ -582,7 +587,7 @@ function RegistrationContent() {
                                 variant="outline"
                                 onClick={() => setStep('start')}
                                 disabled={loading}
-                                className="flex-1 h-16 text-xl font-semibold border-2 border-slate-300 text-slate-700 hover:bg-slate-50 rounded-lg"
+                                className="flex-1 h-12 border-slate-300 bg-white text-slate-700 hover:bg-slate-100 rounded-xl"
                             >
                                 Change Mobile Number
                             </Button>
@@ -592,106 +597,141 @@ function RegistrationContent() {
             case 'details':
                 return (
                     <form onSubmit={handleDetailsSubmit} className="space-y-6 animate-in fade-in slide-in-from-right-8 duration-500">
-                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 text-blue-900 mb-6">
-                            <h3 className="font-semibold text-lg mb-1">Additional Details</h3>
-                            <p className="text-sm text-blue-800">Please provide your address and living arrangement details to help us serve you better.</p>
+                        <div className="bg-blue-50/80 p-4 rounded-xl border border-blue-100 text-blue-900">
+                            <h3 className="font-bold text-blue-950 text-base mb-0.5">Residence & Personal Information</h3>
+                            <p className="text-xs text-slate-600">Please provide your address to enable dedicated Beat Officer safety visits.</p>
                         </div>
 
-                        {/* Living Arrangement */}
-                        <div className="space-y-3">
-                            <Label className="text-base font-semibold">Who are you residing with? <span className="text-red-500">*</span></Label>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-semibold text-slate-800">Who are you residing with? <span className="text-rose-500">*</span></Label>
                             <RadioGroup
                                 value={detailsForm.residingWith}
                                 onValueChange={(val) => setDetailsForm(prev => ({ ...prev, residingWith: val }))}
-                                className="grid grid-cols-2 gap-4"
+                                className="grid grid-cols-2 sm:grid-cols-4 gap-3"
                             >
                                 {['Alone', 'Spouse', 'Children', 'Relatives'].map((opt) => (
                                     <div key={opt}>
                                         <RadioGroupItem value={opt} id={`rw-${opt}`} className="peer sr-only" />
                                         <Label
                                             htmlFor={`rw-${opt}`}
-                                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-blue-600 peer-data-[state=checked]:bg-blue-50 [&:has([data-state=checked])]:border-blue-600 cursor-pointer text-center h-full"
+                                            className="flex flex-col items-center justify-center rounded-xl border border-slate-200 bg-slate-50/80 p-3 hover:bg-slate-100 hover:border-slate-300 peer-data-[state=checked]:border-[#0F52BA] peer-data-[state=checked]:bg-blue-50 peer-data-[state=checked]:text-[#0F52BA] cursor-pointer text-center h-full transition-all text-sm font-medium text-slate-700"
                                         >
-                                            <span className="font-semibold">{opt}</span>
+                                            <span>{opt}</span>
                                         </Label>
                                     </div>
                                 ))}
                             </RadioGroup>
                         </div>
 
-                        {/* Location / Address */}
                         <div className="space-y-4">
                             <div className="flex items-center justify-between">
-                                <Label className="text-base font-semibold">Address Details <span className="text-red-500">*</span></Label>
+                                <Label className="text-sm font-semibold text-slate-800">Address Details <span className="text-rose-500">*</span></Label>
                                 <Button
                                     type="button"
                                     variant="outline"
                                     size="sm"
                                     onClick={handleGPSLocation}
                                     disabled={locationState.fetching}
-                                    className="text-blue-600 border-blue-200 bg-blue-50 hover:bg-blue-100"
+                                    className="text-xs border-blue-200 bg-blue-50 text-[#0F52BA] hover:bg-[#0F52BA] hover:text-white"
                                 >
-                                    <MapPin className="w-4 h-4 mr-2" />
+                                    <MapPin className="w-3.5 h-3.5 mr-1.5" />
                                     {locationState.fetching ? 'Locating...' : 'Use Current Location'}
                                 </Button>
                             </div>
                             {locationState.lat && locationState.lng && (
-                                <div className="text-xs text-green-600 mt-1 flex items-center">
-                                    <MapPin className="w-3 h-3 mr-1" />
-                                    GPS Captured: {locationState.lat.toFixed(6)}, {locationState.lng.toFixed(6)}
-                                    <span className="text-slate-400 ml-2">(Accuracy: {locationState.accuracy?.toFixed(0)}m)</span>
+                                <div className="text-xs text-emerald-800 mt-1 flex items-center bg-emerald-50 border border-emerald-200 p-2 rounded-lg">
+                                    <MapPin className="w-3.5 h-3.5 mr-1.5 shrink-0 text-emerald-600" />
+                                    <span>GPS Captured: {locationState.lat.toFixed(6)}, {locationState.lng.toFixed(6)} (Accuracy: {locationState.accuracy?.toFixed(0)}m)</span>
                                 </div>
                             )}
 
+                            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl space-y-3">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                                        <Home className="w-3.5 h-3.5 text-[#0F52BA]" /> Save Address As <span className="text-rose-500">*</span>
+                                    </Label>
+                                    <Select
+                                        value={detailsForm.addressType}
+                                        onValueChange={(val) => setDetailsForm(prev => ({ ...prev, addressType: val }))}
+                                    >
+                                        <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                                            <SelectValue placeholder="Select Address Type" />
+                                        </SelectTrigger>
+                                        <SelectContent className="bg-white border-slate-200 text-slate-900">
+                                            <SelectItem value="HOME">🏠 HOME</SelectItem>
+                                            <SelectItem value="WORK">💼 WORK</SelectItem>
+                                            <SelectItem value="HOTEL">🏨 HOTEL</SelectItem>
+                                            <SelectItem value="Other">📍 Other</SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                </div>
+
+                                {detailsForm.addressType === 'Other' && (
+                                    <div className="space-y-1.5 pt-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                                        <Label className="text-xs font-semibold text-slate-700">Specify Address Type / Name <span className="text-rose-500">*</span></Label>
+                                        <Input
+                                            value={detailsForm.customAddressType}
+                                            onChange={(e) => setDetailsForm(prev => ({ ...prev, customAddressType: e.target.value }))}
+                                            placeholder="E.g. Farmhouse, Son's Residence, Vacation Home"
+                                            className="bg-white border-slate-300 text-slate-900"
+                                            required={detailsForm.addressType === 'Other'}
+                                        />
+                                    </div>
+                                )}
+                            </div>
+
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>House No / Floor / Building <span className="text-red-500">*</span></Label>
+                                    <Label className="text-xs font-medium text-slate-700">House No / Floor / Building <span className="text-rose-500">*</span></Label>
                                     <Input
                                         value={detailsForm.addressLine1}
                                         onChange={(e) => setDetailsForm(prev => ({ ...prev, addressLine1: e.target.value }))}
                                         placeholder="E.g. Flat 101, A-Block"
                                         required
+                                        className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Street / Area / Locality <span className="text-red-500">*</span></Label>
+                                    <Label className="text-xs font-medium text-slate-700">Street / Area / Locality <span className="text-rose-500">*</span></Label>
                                     <Input
                                         value={detailsForm.addressLine2}
                                         onChange={(e) => setDetailsForm(prev => ({ ...prev, addressLine2: e.target.value }))}
                                         placeholder="E.g. Vasant Kunj"
                                         required
+                                        className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                                     />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>Pincode <span className="text-red-500">*</span></Label>
+                                    <Label className="text-xs font-medium text-slate-700">Pincode <span className="text-rose-500">*</span></Label>
                                     <Input
                                         value={detailsForm.pincode}
                                         onChange={(e) => setDetailsForm(prev => ({ ...prev, pincode: e.target.value.replace(/\D/g, '').slice(0, 6) }))}
                                         placeholder="1100XX"
                                         maxLength={6}
                                         required
+                                        className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
                                     />
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>City</Label>
-                                    <Input value={detailsForm.city} disabled />
+                                    <Label className="text-xs font-medium text-slate-700">City</Label>
+                                    <Input value={detailsForm.city} disabled className="bg-slate-100 border-slate-200 text-slate-600" />
                                 </div>
                             </div>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                 <div className="space-y-2">
-                                    <Label>District <span className="text-red-500">*</span></Label>
+                                    <Label className="text-xs font-medium text-slate-700">District <span className="text-rose-500">*</span></Label>
                                     <Select
                                         value={detailsForm.district}
                                         onValueChange={(val) => setDetailsForm(prev => ({ ...prev, district: val }))}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className="bg-white border-slate-300 text-slate-900">
                                             <SelectValue placeholder="Select District" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="bg-white border-slate-200 text-slate-900">
                                             {districts.map((d: any) => (
                                                 <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                                             ))}
@@ -699,16 +739,16 @@ function RegistrationContent() {
                                     </Select>
                                 </div>
                                 <div className="space-y-2">
-                                    <Label>Police Station <span className="text-red-500">*</span></Label>
+                                    <Label className="text-xs font-medium text-slate-700">Police Station <span className="text-rose-500">*</span></Label>
                                     <Select
                                         value={detailsForm.policeStation}
                                         onValueChange={(val) => setDetailsForm(prev => ({ ...prev, policeStation: val }))}
                                         disabled={!detailsForm.district && policeStations.length === 0}
                                     >
-                                        <SelectTrigger>
+                                        <SelectTrigger className="bg-white border-slate-300 text-slate-900">
                                             <SelectValue placeholder="Select Station" />
                                         </SelectTrigger>
-                                        <SelectContent>
+                                        <SelectContent className="bg-white border-slate-200 text-slate-900">
                                             {policeStations
                                                 .filter((ps: any) => !detailsForm.district || ps.districtId === detailsForm.district)
                                                 .map((ps: any) => (
@@ -720,105 +760,130 @@ function RegistrationContent() {
                             </div>
                         </div>
 
-                        {/* Address Proof */}
-                        <div className="space-y-3 pt-2">
-                            <Label className="text-base font-semibold">Address Proof (Optional)</Label>
-                            <div className="border-2 border-dashed border-slate-300 rounded-lg p-6 flex flex-col items-center justify-center bg-slate-50 relative">
-                                {/* Hidden Input - Triggered by Ref */}
-                                <input
-                                    type="file"
-                                    ref={addressProofInputRef}
-                                    className="hidden"
-                                    onChange={handleAddressProofUpload}
-                                    accept="image/*,.pdf"
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-2 border-t border-slate-200">
+                            <div className="space-y-2">
+                                <Label className="text-xs font-medium text-slate-700">Aadhaar (Last 4 digits - Optional)</Label>
+                                <Input
+                                    value={detailsForm.aadhaarNumber}
+                                    onChange={(e) => setDetailsForm(prev => ({ ...prev, aadhaarNumber: e.target.value.replace(/\D/g, '').slice(0, 4) }))}
+                                    placeholder="XXXX"
+                                    maxLength={4}
+                                    className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
                                 />
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-medium text-slate-700">Gender</Label>
+                                <Select
+                                    value={detailsForm.gender}
+                                    onValueChange={(val) => setDetailsForm(prev => ({ ...prev, gender: val }))}
+                                >
+                                    <SelectTrigger className="bg-white border-slate-300 text-slate-900">
+                                        <SelectValue placeholder="Select" />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-white border-slate-200 text-slate-900">
+                                        <SelectItem value="Male">Male</SelectItem>
+                                        <SelectItem value="Female">Female</SelectItem>
+                                        <SelectItem value="Other">Other</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="space-y-2">
+                                <Label className="text-xs font-medium text-slate-700">Religion</Label>
+                                <Input
+                                    value={detailsForm.religion}
+                                    onChange={(e) => setDetailsForm(prev => ({ ...prev, religion: e.target.value }))}
+                                    placeholder="Optional"
+                                    className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
+                                />
+                            </div>
+                        </div>
 
+                        <div className="space-y-2 pt-2 border-t border-slate-200">
+                            <Label className="text-xs font-semibold text-slate-700">Address Proof Document (Optional)</Label>
+                            <input
+                                ref={addressProofInputRef}
+                                type="file"
+                                accept=".pdf,.jpg,.jpeg,.png"
+                                className="hidden"
+                                onChange={handleAddressProofUpload}
+                            />
+                            <div className="border-2 border-dashed border-slate-300 bg-slate-50/80 rounded-xl p-6 flex flex-col items-center justify-center hover:bg-blue-50/40 hover:border-[#0F52BA] transition-all text-center">
                                 {addressProof.uploading ? (
-                                    <div className="flex flex-col items-center">
-                                        <div className="animate-spin h-6 w-6 border-2 border-blue-600 border-t-transparent rounded-full mb-2"></div>
-                                        <span className="text-sm text-slate-500">Uploading...</span>
+                                    <div className="flex flex-col items-center text-[#0F52BA]">
+                                        <div className="w-8 h-8 border-4 border-[#0F52BA] border-t-transparent rounded-full animate-spin mb-2" />
+                                        <span className="text-sm font-medium">Uploading Document...</span>
                                     </div>
-                                ) : addressProof.file ? (
-                                    <div className="flex flex-col items-center text-green-600 w-full animate-in fade-in zoom-in duration-300">
-                                        <div className="flex items-center gap-2 mb-2 p-2 bg-green-50 rounded-full">
-                                            <Upload className="w-6 h-6" />
-                                        </div>
-                                        <span className="font-medium truncate max-w-[250px] text-slate-700 mb-4">{addressProof.file.name}</span>
-
-                                        <div className="flex gap-3">
-                                            {/* Preview Button */}
+                                ) : addressProof.url || addressProof.file ? (
+                                    <div className="flex flex-col sm:flex-row items-center justify-between gap-3 w-full bg-slate-100 p-3 rounded-lg border border-slate-200">
+                                        <span className="text-sm text-slate-800 truncate max-w-xs">{addressProof.file?.name || 'Document Uploaded'}</span>
+                                        <div className="flex gap-2">
                                             {addressProof.url && (
                                                 <Button
                                                     type="button"
                                                     variant="outline"
                                                     size="sm"
-                                                    className="border-blue-200 text-blue-600 hover:bg-blue-50"
+                                                    className="border-slate-300 bg-white text-[#0F52BA] hover:bg-blue-50"
                                                     onClick={() => window.open(addressProof.url!, '_blank')}
                                                 >
-                                                    <Eye className="w-4 h-4 mr-2" />
-                                                    View
+                                                    <Eye className="w-3.5 h-3.5 mr-1" /> View
                                                 </Button>
                                             )}
-
-                                            {/* Change Button */}
                                             <Button
                                                 type="button"
                                                 variant="outline"
                                                 size="sm"
-                                                className="border-slate-200 text-slate-600 hover:bg-slate-50"
-                                                onClick={() => addressProofInputRef.current?.click()}
-                                            >
-                                                Change
-                                            </Button>
-
-                                            {/* Remove Button */}
-                                            <Button
-                                                type="button"
-                                                variant="outline"
-                                                size="sm"
-                                                className="border-red-200 text-red-600 hover:bg-red-50 hover:text-red-700"
+                                                className="border-rose-200 bg-rose-50 text-rose-700 hover:bg-rose-100"
                                                 onClick={() => {
                                                     setAddressProof({ file: null, url: null, uploading: false });
                                                     if (addressProofInputRef.current) addressProofInputRef.current.value = '';
                                                 }}
                                             >
-                                                <X className="w-4 h-4 mr-1" />
-                                                Remove
+                                                <X className="w-3.5 h-3.5 mr-1" /> Remove
                                             </Button>
                                         </div>
                                     </div>
                                 ) : (
                                     <div
-                                        className="flex flex-col items-center text-slate-500 cursor-pointer w-full h-full"
+                                        className="flex flex-col items-center cursor-pointer w-full text-slate-500 hover:text-[#0F52BA]"
                                         onClick={() => addressProofInputRef.current?.click()}
                                     >
-                                        <Upload className="w-10 h-10 mb-2 text-slate-400" />
-                                        <span className="font-medium text-lg">Click to upload document</span>
-                                        <span className="text-xs mt-1 text-slate-400">PDF, JPG, PNG (Max 5MB)</span>
+                                        <Upload className="w-8 h-8 mb-2 text-[#0F52BA]" />
+                                        <span className="font-semibold text-sm text-slate-800">Click to upload address proof</span>
+                                        <span className="text-[11px] mt-1 text-slate-500">PDF, JPG, PNG (Max 5MB)</span>
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* Emergency Contact */}
-                        <div className="space-y-4 pt-2 border-t">
-                            <h4 className="font-semibold text-slate-900">Emergency Contact (Optional)</h4>
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                <div className="space-y-2">
-                                    <Label>Contact Name</Label>
+                        <div className="space-y-3 pt-2 border-t border-slate-200">
+                            <h4 className="font-semibold text-slate-800 text-sm">Emergency Contact (Optional)</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs text-slate-700">Contact Name</Label>
                                     <Input
                                         value={detailsForm.emergencyContactName}
                                         onChange={(e) => setDetailsForm(prev => ({ ...prev, emergencyContactName: e.target.value }))}
                                         placeholder="Name of relative/friend"
+                                        className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                                     />
                                 </div>
-                                <div className="space-y-2">
-                                    <Label>Mobile Number</Label>
+                                <div className="space-y-1.5">
+                                    <Label className="text-xs text-slate-700">Mobile Number</Label>
                                     <Input
                                         value={detailsForm.emergencyContactNumber}
                                         onChange={(e) => setDetailsForm(prev => ({ ...prev, emergencyContactNumber: e.target.value.replace(/\D/g, '').slice(0, 10) }))}
                                         placeholder="10-digit mobile"
                                         maxLength={10}
+                                        className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400 font-mono"
+                                    />
+                                </div>
+                                <div className="space-y-1.5 md:col-span-2">
+                                    <Label className="text-xs text-slate-700">Relation</Label>
+                                    <Input
+                                        value={detailsForm.emergencyContactRelation}
+                                        onChange={(e) => setDetailsForm(prev => ({ ...prev, emergencyContactRelation: e.target.value }))}
+                                        placeholder="e.g. Son, Daughter, Neighbor"
+                                        className="bg-white border-slate-300 text-slate-900 placeholder:text-slate-400"
                                     />
                                 </div>
                             </div>
@@ -827,7 +892,7 @@ function RegistrationContent() {
                         <Button
                             type="submit"
                             disabled={loading || !detailsForm.addressLine1 || !detailsForm.pincode || !detailsForm.policeStation}
-                            className="w-full h-14 text-lg font-bold bg-green-600 hover:bg-green-700 text-white rounded-lg shadow-md mt-6"
+                            className="w-full h-12 text-base font-bold bg-gradient-to-r from-[#0F52BA] to-[#720924] hover:from-[#0F52BA]/90 hover:to-[#720924]/90 text-white rounded-xl shadow-md mt-4"
                         >
                             {loading ? 'Submitting...' : 'Submit Registration'}
                         </Button>
@@ -839,41 +904,49 @@ function RegistrationContent() {
     };
 
     return (
-        <div className="min-h-screen bg-slate-50 py-8 px-4 sm:px-6 lg:px-8">
-            <div className="max-w-3xl mx-auto">
-                <div className="mb-8 text-center">
-                    <h1 className="text-3xl sm:text-4xl font-bold text-slate-900 mb-2">Senior Citizen Registration</h1>
-                    <p className="text-lg text-slate-600">Delhi Police - Shanti Sewa Nyaya</p>
+        <div className="w-full relative py-4 sm:py-6 animate-fade-in">
+            <div className="max-w-3xl mx-auto relative z-10 space-y-6">
+                <div className="flex flex-col items-center text-center space-y-3">
+                    <div className="bg-blue-50 p-3.5 sm:p-4 rounded-full shadow-md border border-blue-100 text-[#0F52BA] animate-float">
+                        <UserPlus className="h-10 w-10 sm:h-12 sm:w-12 text-[#0F52BA]" />
+                    </div>
+                    <div>
+                        <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-slate-900">
+                            Senior Citizen Registration
+                        </h1>
+                        <p className="text-slate-600 mt-1.5 text-sm sm:text-base font-medium">Delhi Police - Shanti Sewa Nyaya</p>
+                    </div>
                 </div>
 
-                <Card className="border-0 shadow-xl overflow-hidden rounded-2xl">
-                    <div className="bg-blue-700 p-6 text-white">
-                        <div className="flex items-center justify-between mb-4">
-                            <h2 className="text-2xl font-bold">
+                <Card className="shadow-xl border border-slate-200 bg-white text-slate-900 rounded-2xl overflow-hidden">
+                    <div className="bg-gradient-to-r from-[#0F52BA] via-[#1565C0] to-[#720924] p-4 sm:p-6 text-white border-b border-blue-900/30">
+                        <div className="flex items-center justify-between mb-3 sm:mb-4">
+                            <h2 className="text-lg sm:text-2xl font-bold tracking-tight">
                                 {step === 'start' && 'Step 1: Contact Info'}
                                 {step === 'otp' && 'Step 2: Verification'}
                                 {step === 'details' && 'Step 3: Personal Details'}
                             </h2>
-
+                            <span className="text-[11px] sm:text-xs md:text-sm font-semibold bg-white/15 px-2.5 sm:px-3 py-1 rounded-full border border-white/25 backdrop-blur-sm text-white">
+                                {step === 'start' ? '1 of 3' : step === 'otp' ? '2 of 3' : '3 of 3'}
+                            </span>
                         </div>
 
-                        {/* Accessible Progress Bar */}
-                        <div className="w-full bg-blue-900/30 rounded-full h-3 mb-2" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`Registration progress: ${Math.round(progressPercent)}%`}>
+                        <div className="w-full bg-black/20 border border-white/20 rounded-full h-2.5" role="progressbar" aria-valuenow={progressPercent} aria-valuemin={0} aria-valuemax={100} aria-label={`Registration progress: ${Math.round(progressPercent)}%`}>
                             <div
-                                className="bg-white h-3 rounded-full transition-all duration-500 ease-out"
+                                className="bg-gradient-to-r from-amber-300 to-[#D4AF37] h-2.5 rounded-full transition-all duration-500 ease-out shadow-sm"
                                 style={{ width: `${progressPercent}%` }}
                             />
                         </div>
                     </div>
 
-                    <CardContent className="p-6 sm:p-10 bg-white">
+                    <CardContent className="p-4 sm:p-8 md:p-10 bg-white">
                         {error && (
-                            <Alert variant="destructive" className="mb-8 border-2 border-red-200 bg-red-50">
-                                <AlertDescription className="text-lg font-medium text-red-800 flex items-center gap-3">
-                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-6 w-6" viewBox="0 0 20 20" fill="currentColor">
+                            <Alert variant="destructive" className="mb-6 bg-rose-50 border-rose-200 text-rose-800 animate-slide-up">
+                                <AlertDescription className="text-sm font-medium flex items-center gap-2">
+                                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 shrink-0 text-rose-600" viewBox="0 0 20 20" fill="currentColor">
                                         <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7 4a1 1 0 11-2 0 1 1 0 012 0zm-1-9a1 1 0 00-1 1v4a1 1 0 102 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
                                     </svg>
-                                    {error}
+                                    <span>{error}</span>
                                 </AlertDescription>
                             </Alert>
                         )}
@@ -881,8 +954,8 @@ function RegistrationContent() {
                     </CardContent>
                 </Card>
 
-                <p className="text-center text-slate-500 mt-8 text-sm">
-                    Need help? Call Senior Citizen Helpline: <a href="tel:1291" className="font-bold text-blue-700 hover:underline text-lg">1291</a>
+                <p className="text-center text-slate-600 text-xs sm:text-sm">
+                    Need help with registration? Call Senior Citizen Helpline: <a href="tel:1291" className="font-bold text-[#0F52BA] hover:underline">1291</a>
                 </p>
             </div>
         </div>
@@ -893,7 +966,7 @@ export default function CitizenRegistrationPage() {
     return (
         <Suspense fallback={
             <div className="min-h-screen flex items-center justify-center bg-slate-50">
-                <div className="animate-spin h-8 w-8 border-4 border-blue-600 border-t-transparent rounded-full"></div>
+                <div className="animate-spin h-8 w-8 border-4 border-[#0F52BA] border-t-transparent rounded-full"></div>
             </div>
         }>
             <RegistrationContent />

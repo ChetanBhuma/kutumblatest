@@ -652,13 +652,17 @@ export class CitizenPortalController {
                     fullName: citizenData.fullName,
                     dateOfBirth: new Date(citizenData.dateOfBirth),
                     age: calculateAge(citizenData.dateOfBirth),
-                    gender: citizenData.gender,
+                    gender: (citizenData.gender && ['male', 'female', 'other'].includes(citizenData.gender.trim().toLowerCase()))
+                        ? citizenData.gender.trim().charAt(0).toUpperCase() + citizenData.gender.trim().slice(1).toLowerCase()
+                        : (citizenData.gender || 'Other'),
                     mobileNumber: citizenData.mobileNumber,
                     email: citizenData.email,
                     permanentAddress: citizenData.address, // Mapped from 'address'
-                    presentAddress: citizenData.address,   // Assuming same for now
                     addressLine1: citizenData.addressLine1,
                     addressLine2: citizenData.addressLine2,
+                    addressType: citizenData.addressType || 'HOME',
+                    city: citizenData.city || 'Delhi',
+                    state: citizenData.state || 'Delhi',
 
                     // Relations using CONNECT strategy
                     District: citizenData.districtId ? { connect: { id: citizenData.districtId } } : undefined,
@@ -1000,6 +1004,22 @@ export class CitizenPortalController {
                 exactMatchFields: ['status']
             });
 
+            // Apply Data Scope
+            const scope = req.dataScope;
+            if (scope && scope.level !== 'ALL') {
+                if (scope.level === 'RANGE' && scope.jurisdictionIds.rangeId) {
+                    where.SeniorCitizen = { ...where.SeniorCitizen, rangeId: scope.jurisdictionIds.rangeId };
+                } else if (scope.level === 'DISTRICT' && scope.jurisdictionIds.districtId) {
+                    where.SeniorCitizen = { ...where.SeniorCitizen, districtId: scope.jurisdictionIds.districtId };
+                } else if (scope.level === 'SUBDIVISION' && scope.jurisdictionIds.subDivisionId) {
+                    where.SeniorCitizen = { ...where.SeniorCitizen, subDivisionId: scope.jurisdictionIds.subDivisionId };
+                } else if (scope.level === 'POLICE_STATION' && scope.jurisdictionIds.policeStationId) {
+                    where.SeniorCitizen = { ...where.SeniorCitizen, policeStationId: scope.jurisdictionIds.policeStationId };
+                } else if (scope.level === 'BEAT' && scope.jurisdictionIds.beatId) {
+                    where.SeniorCitizen = { ...where.SeniorCitizen, beatId: scope.jurisdictionIds.beatId };
+                }
+            }
+
             const result = await paginatedQuery(db.visitRequest, {
                 page: Number(req.query.page),
                 limit: Number(req.query.limit),
@@ -1011,10 +1031,19 @@ export class CitizenPortalController {
                             fullName: true,
                             mobileNumber: true,
                             vulnerabilityLevel: true,
-                            policeStationName: true,
-                            beatName: true,
-                            preferredVisitDay: true,
-                            preferredVisitTime: true
+                            policeStationId: true,
+                            beatId: true,
+                            PoliceStation: {
+                                select: {
+                                    name: true
+                                }
+                            },
+                            Beat: {
+                                select: {
+                                    name: true
+                                }
+                            },
+                            permanentAddress: true
                         }
                     }
                 },
@@ -1023,7 +1052,10 @@ export class CitizenPortalController {
 
             res.json({
                 success: true,
-                data: result
+                data: {
+                    ...result,
+                    visitRequests: result.items
+                }
             });
         } catch (error) {
             next(error);
@@ -1200,7 +1232,8 @@ export class CitizenPortalController {
                             id: true,
                             name: true,
                             rank: true,
-                            badgeNumber: true
+                            badgeNumber: true,
+                            mobileNumber: true
                         }
                     },
                     PoliceStation: {

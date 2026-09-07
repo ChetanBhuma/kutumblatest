@@ -43,7 +43,6 @@ class PasswordResetController {
             // TODO: Send email with reset link
             // const resetUrl = `${process.env.FRONTEND_URL}/reset-password?token=${resetToken}`;
             // await EmailService.sendPasswordReset(user.email, resetUrl);
-            console.log(`[PASSWORD RESET] Token for ${email}: ${resetToken}`);
             return res.json({
                 success: true,
                 message: 'If the email exists, a reset link has been sent',
