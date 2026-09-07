@@ -25,7 +25,7 @@ router.use(authenticate_1.authenticate);
  *       200:
  *         description: List of assigned visits
  */
-router.get('/officer/assignments', (0, authorize_1.requireRole)(auth_1.Role.OFFICER), (0, asyncHandler_1.asyncHandler)(visitController_1.VisitController.getOfficerAssignments));
+router.get('/officer/assignments', (0, authorize_1.requireAnyPermission)([auth_1.Permission.VISITS_READ, auth_1.Permission.VISITS_COMPLETE]), (0, asyncHandler_1.asyncHandler)(visitController_1.VisitController.getOfficerAssignments));
 /**
  * @swagger
  * /visits:
@@ -290,7 +290,7 @@ router.post('/:id/complete', (0, authorize_1.requirePermission)(auth_1.Permissio
  *       200:
  *         description: Visit started
  */
-router.post('/:id/start', (0, authorize_1.requireRole)([auth_1.Role.OFFICER, auth_1.Role.ADMIN, auth_1.Role.SUPER_ADMIN]), [
+router.post('/:id/start', (0, authorize_1.requireAnyPermission)([auth_1.Permission.VISITS_COMPLETE, auth_1.Permission.VISITS_SCHEDULE]), [
     validation_1.ValidationRules.id('id'),
     validation_1.ValidationRules.latitude(),
     validation_1.ValidationRules.longitude(),
@@ -328,7 +328,7 @@ router.post('/:id/start', (0, authorize_1.requireRole)([auth_1.Role.OFFICER, aut
  *       200:
  *         description: Visit completed by officer
  */
-router.post('/:id/officer-complete', (0, authorize_1.requireRole)(auth_1.Role.OFFICER), [
+router.post('/:id/officer-complete', (0, authorize_1.requirePermission)(auth_1.Permission.VISITS_COMPLETE), [
     validation_1.ValidationRules.id('id'),
     (0, express_validator_1.body)('notes').optional().trim(),
     (0, express_validator_1.body)('photoUrl').optional().trim(),

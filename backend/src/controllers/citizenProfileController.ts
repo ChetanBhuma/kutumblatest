@@ -98,7 +98,7 @@ export class CitizenProfileController {
                 });
             }
 
-            console.log('DEBUG: getProfile for citizenId:', citizenId);
+
 
             const citizen = await db.seniorCitizen.findUnique({
                 where: { id: citizenId },
@@ -220,7 +220,7 @@ export class CitizenProfileController {
                 ...flatUpdates
             } = req.body;
 
-            console.log('DEBUG: updateProfile Payload:', JSON.stringify(flatUpdates, null, 2));
+
 
             // Simple fields mapping
             const allowedUpdates = [
@@ -256,6 +256,13 @@ export class CitizenProfileController {
                 return isNaN(parsed) ? null : parsed;
             };
 
+            if (updates.gender && typeof updates.gender === 'string') {
+                const lower = updates.gender.trim().toLowerCase();
+                if (['male', 'female', 'other'].includes(lower)) {
+                    updates.gender = lower.charAt(0).toUpperCase() + lower.slice(1);
+                }
+            }
+
             if (updates.numberOfChildren !== undefined) {
                 updates.numberOfChildren = safeInt(updates.numberOfChildren);
             }
@@ -280,7 +287,7 @@ export class CitizenProfileController {
                 }
             });
 
-            console.log('DEBUG: Processed Updates:', JSON.stringify(updates, null, 2));
+
 
             // Remove empty string dateOfBirth to prevent Prisma error (field is DateTime)
             if (typeof updates.dateOfBirth === 'string' && !updates.dateOfBirth) {
@@ -335,14 +342,29 @@ export class CitizenProfileController {
                 }
 
                 // 2. Update main profile
-                console.log('DEBUG: Updating SeniorCitizen with:', JSON.stringify(updates, null, 2));
+
                 await tx.seniorCitizen.update({
                     where: { id: citizenId },
                     data: updates
                 });
 
-                // NOTE: VerificationRequest is already created during initial registration
-                // No need to create another one here during profile update
+                // Ensure VerificationRequest exists for this senior citizen
+                const existingVerification = await tx.verificationRequest.findFirst({
+                    where: { seniorCitizenId: citizenId }
+                });
+                if (!existingVerification) {
+                    await tx.verificationRequest.create({
+                        data: {
+                            entityType: 'SeniorCitizen',
+                            entityId: citizenId,
+                            seniorCitizenId: citizenId,
+                            requestedBy: citizenId,
+                            priority: 'Normal',
+                            status: 'PENDING',
+                            remarks: 'Citizen profile completion - Awaiting SHO officer assignment'
+                        }
+                    });
+                }
 
                 // 3. Handle Emergency Contacts
                 if (Array.isArray(emergencyContacts)) {
@@ -801,11 +823,6 @@ export class CitizenProfileController {
      */
     static async uploadDocument(req: AuthRequest, res: Response, next: NextFunction) {
         try {
-            console.log('DEBUG: uploadDocument called', {
-                headers: req.headers,
-                body: req.body,
-                file: req.file ? { ...req.file, buffer: undefined } : 'MISSING'
-            });
 
             let citizenId = req.user?.citizenId;
 
@@ -827,7 +844,7 @@ export class CitizenProfileController {
                     citizenId = existing.id;
                 } else {
                     // Create new placeholder citizen
-                    console.log(`DEBUG: Auto-creating citizen for upload: ${mobile}`);
+
                     const newCitizen = await db.seniorCitizen.create({
                         data: {
                             mobileNumber: mobile,
@@ -871,19 +888,35 @@ export class CitizenProfileController {
 
             // Upload to cloud storage
             const fileKey = `${folder}/${citizenId}/${Date.now()}_${req.file.originalname}`;
-            console.log(`DEBUG: Uploading to cloud/local. Key: ${fileKey}`);
+
 
             const fileUrl = await cloudStorage.uploadFile(req.file.path, fileKey, req.file.mimetype);
-            console.log(`DEBUG: Upload successful. URL: ${fileUrl}`);
+
 
             // Clean up local file ONLY if we are using cloud storage (URL starts with http)
             // If local, fileUrl is likely valid relative path, so we keep the file.
             const isCloudUrl = fileUrl.startsWith('http');
             if (isCloudUrl && req.file.path && fs.existsSync(req.file.path)) {
-                console.log('DEBUG: Cleaning up local temp file');
+
                 fs.unlinkSync(req.file.path);
             } else {
-                console.log('DEBUG: Keeping local file for local storage mode');
+
+            }
+
+            // Clean up previous documents of the same singleton type (e.g. ProfilePhoto, AddressProof)
+            const isSingletonType = documentType === 'ProfilePhoto' || documentType === 'AddressProof';
+            if (isSingletonType) {
+                const existingDocs = await db.document.findMany({
+                    where: { seniorCitizenId: citizenId, documentType }
+                });
+                for (const oldDoc of existingDocs) {
+                    try {
+                        if (oldDoc.fileUrl) await cloudStorage.deleteFile(oldDoc.fileUrl);
+                    } catch (e) { /* ignore */ }
+                }
+                await db.document.deleteMany({
+                    where: { seniorCitizenId: citizenId, documentType }
+                });
             }
 
             const document = await db.document.create({
@@ -896,6 +929,19 @@ export class CitizenProfileController {
                     fileSize: req.file.size
                 }
             });
+
+            // Sync with SeniorCitizen fields if applicable
+            if (documentType === 'ProfilePhoto') {
+                await db.seniorCitizen.update({
+                    where: { id: citizenId },
+                    data: { photoUrl: fileUrl }
+                });
+            } else if (documentType === 'AddressProof') {
+                await db.seniorCitizen.update({
+                    where: { id: citizenId },
+                    data: { addressProofUrl: fileUrl }
+                });
+            }
 
             auditLogger.info('Citizen uploaded document', {
                 citizenId,
@@ -926,14 +972,85 @@ export class CitizenProfileController {
                 });
             }
 
-            const documents = await db.document.findMany({
+            const rawDocuments = await db.document.findMany({
                 where: { seniorCitizenId: citizenId },
                 orderBy: { uploadedAt: 'desc' }
+            });
+
+            // Deduplicate by fileUrl and documentType
+            const seen = new Set<string>();
+            const documents = rawDocuments.filter((doc: any) => {
+                const key = `${doc.documentType}_${doc.fileUrl}`;
+                if (seen.has(key)) {
+                    return false;
+                }
+                seen.add(key);
+                return true;
             });
 
             return res.json({
                 success: true,
                 data: { documents }
+            });
+        } catch (error) {
+            return next(error);
+        }
+    }
+
+    /**
+     * Delete own document
+     */
+    static async deleteDocument(req: AuthRequest, res: Response, next: NextFunction) {
+        try {
+            const citizenId = req.user?.citizenId;
+            const { id } = req.params;
+
+            if (!citizenId) {
+                throw new AppError('Profile not found', 404);
+            }
+
+            const document = await db.document.findFirst({
+                where: { id, seniorCitizenId: citizenId }
+            });
+
+            if (!document) {
+                throw new AppError('Document not found', 404);
+            }
+
+            // Attempt to clean up storage
+            try {
+                if (document.fileUrl) {
+                    await cloudStorage.deleteFile(document.fileUrl);
+                }
+            } catch (err) {
+                console.warn('Failed to delete file from storage:', err);
+            }
+
+            await db.document.delete({
+                where: { id }
+            });
+
+            // If it was the citizen's photo or address proof, clear field
+            if (document.documentType === 'ProfilePhoto') {
+                await db.seniorCitizen.update({
+                    where: { id: citizenId },
+                    data: { photoUrl: null }
+                });
+            } else if (document.documentType === 'AddressProof') {
+                await db.seniorCitizen.update({
+                    where: { id: citizenId },
+                    data: { addressProofUrl: null }
+                });
+            }
+
+            auditLogger.info('Citizen deleted document', {
+                citizenId,
+                documentId: id
+            });
+
+            return res.json({
+                success: true,
+                message: 'Document deleted successfully'
             });
         } catch (error) {
             return next(error);

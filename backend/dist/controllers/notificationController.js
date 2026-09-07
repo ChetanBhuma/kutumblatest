@@ -104,6 +104,71 @@ class NotificationController {
             next(error);
         }
     }
+    /**
+     * Get user notifications
+     */
+    static async getNotifications(req, res, next) {
+        try {
+            const page = parseInt(req.query.page) || 1;
+            const limit = parseInt(req.query.limit) || 20;
+            // Check if user exists (should exist due to AuthRequest but good to be safe with !)
+            if (!req.user?.id) {
+                throw new errorHandler_1.AppError('User not authenticated', 401);
+            }
+            const result = await notificationService_1.NotificationService.getUserNotifications(req.user.id, page, limit);
+            res.json({
+                success: true,
+                data: result
+            });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * Mark notification as read
+     */
+    static async markRead(req, res, next) {
+        try {
+            const { id } = req.params;
+            if (!req.user?.id)
+                throw new errorHandler_1.AppError('User not authenticated', 401);
+            await notificationService_1.NotificationService.markAsRead(id, req.user.id);
+            res.json({ success: true, message: 'Notification marked as read' });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * Mark all notifications as read
+     */
+    static async markAllRead(req, res, next) {
+        try {
+            if (!req.user?.id)
+                throw new errorHandler_1.AppError('User not authenticated', 401);
+            await notificationService_1.NotificationService.markAllAsRead(req.user.id);
+            res.json({ success: true, message: 'All notifications marked as read' });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
+    /**
+     * Delete notification
+     */
+    static async deleteNotification(req, res, next) {
+        try {
+            const { id } = req.params;
+            if (!req.user?.id)
+                throw new errorHandler_1.AppError('User not authenticated', 401);
+            await notificationService_1.NotificationService.deleteNotification(id, req.user.id);
+            res.json({ success: true, message: 'Notification deleted' });
+        }
+        catch (error) {
+            next(error);
+        }
+    }
 }
 exports.NotificationController = NotificationController;
 //# sourceMappingURL=notificationController.js.map

@@ -1,0 +1,24 @@
+
+=== SLOWEST API CALLS (by server wait time) ===
+
+1. [12689ms wait, 12705ms total] GET /api/v1/users?page=1&limit=10 (200)
+2. [6280ms wait, 6301ms total] GET /api/v1/citizens?page=1&limit=20 (200)
+3. [5358ms wait, 5615ms total] GET /api/v1/roles/matrix (200)
+4. [4955ms wait, 4958ms total] GET /api/v1/notifications?page=1&limit=1 (200)
+5. [4466ms wait, 4476ms total] GET /api/v1/notifications?page=1&limit=1 (200)
+6. [3364ms wait, 3367ms total] POST /api/v1/auth/login (200)
+7. [2328ms wait, 2337ms total] GET /api/v1/notifications?page=1&limit=1 (200)
+
+=== ALL API CALLS ===
+
+1. [12689ms] GET /api/v1/users?page=1&limit=10
+2. [6280ms] GET /api/v1/citizens?page=1&limit=20
+3. [5358ms] GET /api/v1/roles/matrix
+4. [4955ms] GET /api/v1/notifications?page=1&limit=1
+5. [4466ms] GET /api/v1/notifications?page=1&limit=1
+6. [3364ms] POST /api/v1/auth/login
+7. [2328ms] GET /api/v1/notifications?page=1&limit=1
+
+=== SUMMARY ===
+Total API calls: 7
+Average wait time: 5634ms

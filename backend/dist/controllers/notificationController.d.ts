@@ -13,5 +13,21 @@ export declare class NotificationController {
      * Test notification
      */
     static testNotification(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Get user notifications
+     */
+    static getNotifications(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Mark notification as read
+     */
+    static markRead(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Mark all notifications as read
+     */
+    static markAllRead(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
+    /**
+     * Delete notification
+     */
+    static deleteNotification(req: AuthRequest, res: Response, next: NextFunction): Promise<void>;
 }
 //# sourceMappingURL=notificationController.d.ts.map

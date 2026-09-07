@@ -135,7 +135,7 @@ router.get('/', (0, authorize_1.requirePermission)(auth_1.Permission.CITIZENS_RE
     (0, express_validator_1.query)('districtId').optional().trim(),
     (0, express_validator_1.query)('rangeId').optional().trim(),
     (0, express_validator_1.query)('vulnerabilityLevel').optional().isIn(['Low', 'Medium', 'High']),
-    (0, express_validator_1.query)('verificationStatus').optional().isIn(['Pending', 'Approved', 'Rejected']),
+    (0, express_validator_1.query)('verificationStatus').optional().isIn(['Pending', 'Verified', 'Rejected', 'FieldVerified', 'Suspended']),
     validate_1.validate
 ], (0, asyncHandler_1.asyncHandler)(citizenController_1.CitizenController.list));
 /**
@@ -404,19 +404,16 @@ router.post('/:id/documents', (0, authorize_1.requirePermission)(auth_1.Permissi
         const { id } = req.params;
         const { documentType } = req.body;
         const file = req.file;
-        console.log(`[Upload] Starting upload for citizen ${id}, type: ${documentType}`);
         if (!file) {
             console.error('[Upload] No file received by multer');
             return res.status(400).json({ success: false, error: { message: 'No file uploaded' } });
         }
-        console.log(`[Upload] File received: ${file.originalname} (${file.size} bytes)`);
         const { prisma } = await Promise.resolve().then(() => __importStar(require('../config/database')));
         const { cloudStorage } = await Promise.resolve().then(() => __importStar(require('../services/cloudStorageService')));
         // Generate file URL using cloud service (handles local/cloud abstraction)
         let fileUrl;
         try {
             fileUrl = await cloudStorage.uploadFile(file.path, `${documentType}/${id}/${file.filename}`, file.mimetype);
-            console.log(`[Upload] File processed by storage service: ${fileUrl}`);
         }
         catch (storageError) {
             console.error('[Upload] Storage service error:', storageError);
@@ -434,7 +431,6 @@ router.post('/:id/documents', (0, authorize_1.requirePermission)(auth_1.Permissi
                 uploadedAt: new Date()
             }
         });
-        console.log('[Upload] Document record created:', document.id);
         return res.json({ success: true, data: { document } });
     }
     catch (error) {

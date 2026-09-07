@@ -1,37 +1,4 @@
 "use strict";
-var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    var desc = Object.getOwnPropertyDescriptor(m, k);
-    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
-      desc = { enumerable: true, get: function() { return m[k]; } };
-    }
-    Object.defineProperty(o, k2, desc);
-}) : (function(o, m, k, k2) {
-    if (k2 === undefined) k2 = k;
-    o[k2] = m[k];
-}));
-var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
-    Object.defineProperty(o, "default", { enumerable: true, value: v });
-}) : function(o, v) {
-    o["default"] = v;
-});
-var __importStar = (this && this.__importStar) || (function () {
-    var ownKeys = function(o) {
-        ownKeys = Object.getOwnPropertyNames || function (o) {
-            var ar = [];
-            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
-            return ar;
-        };
-        return ownKeys(o);
-    };
-    return function (mod) {
-        if (mod && mod.__esModule) return mod;
-        var result = {};
-        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
-        __setModuleDefault(result, mod);
-        return result;
-    };
-})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -41,7 +8,6 @@ const database_1 = require("../config/database");
 const errorHandler_1 = require("../middleware/errorHandler");
 const logger_1 = require("../config/logger");
 const notificationService_1 = require("../services/notificationService");
-const VerificationService = __importStar(require("../services/verificationService"));
 const cloudStorageService_1 = require("../services/cloudStorageService");
 const fs_1 = __importDefault(require("fs"));
 const db = database_1.prisma;
@@ -70,11 +36,14 @@ class CitizenProfileController {
             GENDER: 'Unknown',
             NAME: 'Unknown'
         };
-        // Relaxed check to unblock user loop.
-        // As long as Name and DOB are present, let them through to dashboard.
-        return !!(citizen.fullName &&
-            citizen.fullName !== PLACEHOLDERS.NAME &&
-            citizen.dateOfBirth);
+        // Stricter check to ensure critical fields are actually filled.
+        // This ensures the Dashboard Modal appears if the user has only done OTP verification
+        // but hasn't successfully submitted the details form.
+        return !!(citizen.fullName && citizen.fullName !== PLACEHOLDERS.NAME &&
+            citizen.dateOfBirth &&
+            citizen.gender && citizen.gender !== PLACEHOLDERS.GENDER &&
+            citizen.permanentAddress && citizen.permanentAddress !== PLACEHOLDERS.ADDRESS &&
+            citizen.pinCode && citizen.pinCode !== PLACEHOLDERS.PINCODE);
     }
     /**
      * Get own profile
@@ -122,7 +91,6 @@ class CitizenProfileController {
                     message: 'Profile not found. Please complete registration.'
                 });
             }
-            console.log('DEBUG: getProfile for citizenId:', citizenId);
             const citizen = await db.seniorCitizen.findUnique({
                 where: { id: citizenId },
                 include: {
@@ -224,7 +192,6 @@ class CitizenProfileController {
                 throw new errorHandler_1.AppError('Profile not found', 404);
             }
             const { emergencyContacts, familyMembers, householdHelp, medicalHistory, spouseDetails, ...flatUpdates } = req.body;
-            console.log('DEBUG: updateProfile Payload:', JSON.stringify(flatUpdates, null, 2));
             // Simple fields mapping
             const allowedUpdates = [
                 'fullName', 'dateOfBirth', 'gender', 'bloodGroup',
@@ -277,7 +244,6 @@ class CitizenProfileController {
                     updates[field] = null;
                 }
             });
-            console.log('DEBUG: Processed Updates:', JSON.stringify(updates, null, 2));
             // Remove empty string dateOfBirth to prevent Prisma error (field is DateTime)
             if (typeof updates.dateOfBirth === 'string' && !updates.dateOfBirth) {
                 delete updates.dateOfBirth;
@@ -291,8 +257,6 @@ class CitizenProfileController {
                 const diff = Date.now() - updates.dateOfBirth.getTime();
                 updates.age = Math.floor(diff / (365.25 * 24 * 60 * 60 * 1000));
             }
-            // 1. Prepare variable for post-transaction action
-            let verificationPayload = null;
             // Execute in transaction
             const citizen = await db.$transaction(async (tx) => {
                 // 1. Fetch current state BEFORE update to check for changes
@@ -325,23 +289,12 @@ class CitizenProfileController {
                     });
                 }
                 // 2. Update main profile
-                console.log('DEBUG: Updating SeniorCitizen with:', JSON.stringify(updates, null, 2));
                 await tx.seniorCitizen.update({
                     where: { id: citizenId },
                     data: updates
                 });
-                // 2.1 Prepare Verification Request if address changed (EXECUTE AFTER TX)
-                if (isAddressChanged) {
-                    verificationPayload = {
-                        entityType: 'SeniorCitizen',
-                        entityId: citizenId,
-                        seniorCitizenId: citizenId,
-                        requestedBy: citizenId, // Self-triggered
-                        priority: 'High',
-                        remarks: `Auto-triggered by Address/Police Station Change. Address changed from [${oldCitizen?.permanentAddress}] to [${updates.permanentAddress || oldCitizen?.permanentAddress}]`,
-                        documents: [],
-                    };
-                }
+                // NOTE: VerificationRequest is already created during initial registration
+                // No need to create another one here during profile update
                 // 3. Handle Emergency Contacts
                 if (Array.isArray(emergencyContacts)) {
                     await tx.emergencyContact.deleteMany({
@@ -479,15 +432,7 @@ class CitizenProfileController {
             });
             // 6. Sync with CitizenRegistration & Auth
             await CitizenProfileController.syncCitizenStatus(citizenId, citizen);
-            // POST-TRANSACTION: Trigger Verification Request
-            if (verificationPayload) {
-                try {
-                    await VerificationService.createVerificationRequest(verificationPayload);
-                }
-                catch (vErr) {
-                    console.error('Failed to auto-trigger verification request:', vErr);
-                }
-            }
+            // NOTE: VerificationRequest creation removed - already handled during initial registration
             // Special handling if mobile number was updated
             if (updates.mobileNumber) {
                 const formattedMobile = formatMobile(updates.mobileNumber);
@@ -571,23 +516,45 @@ class CitizenProfileController {
                 },
                 orderBy: { scheduledDate: 'desc' }
             });
-            const requests = await db.visitRequest.findMany({
+            // 1. Fetch legacy VisitRequests
+            const visitRequests = await db.visitRequest.findMany({
                 where: {
                     seniorCitizenId: citizenId,
                     status: 'Pending'
                 },
                 orderBy: { createdAt: 'desc' }
             });
-            const requestVisits = requests.map((r) => ({
+            // 2. Fetch new VerificationRequests (Pending/InProgress)
+            const verificationRequests = await db.verificationRequest.findMany({
+                where: {
+                    seniorCitizenId: citizenId,
+                    status: { in: ['PENDING', 'IN_PROGRESS'] }
+                },
+                orderBy: { createdAt: 'desc' }
+            });
+            // 3. Map legacy requests
+            const mappedVisitRequests = visitRequests.map((r) => ({
                 id: r.id,
                 visitType: r.visitType || 'Request',
                 scheduledDate: r.preferredDate,
                 createdAt: r.createdAt,
-                status: r.status,
+                status: r.status, // e.g. Pending (PascalCase)
                 officer: null,
                 isRequest: true
             }));
-            const allVisits = [...requestVisits, ...visits].sort((a, b) => {
+            // 4. Map new verification requests to same format
+            const mappedVerificationRequests = verificationRequests.map((r) => ({
+                id: r.id,
+                visitType: 'Verification',
+                scheduledDate: r.createdAt, // Use creation date as preferred date fallback
+                createdAt: r.createdAt,
+                status: r.status === 'IN_PROGRESS' ? 'Pending' : 'Pending', // Map to PascalCase 'Pending' for UI consistency
+                officer: r.assignedTo ? { id: r.assignedTo, name: 'Assigned Officer' } : null,
+                isRequest: true,
+                isVerification: true
+            }));
+            const allRequests = [...mappedVerificationRequests, ...mappedVisitRequests];
+            const allVisits = [...allRequests, ...visits].sort((a, b) => {
                 const dateA = new Date(a.scheduledDate || a.createdAt).getTime();
                 const dateB = new Date(b.scheduledDate || b.createdAt).getTime();
                 return dateB - dateA;
@@ -740,11 +707,6 @@ class CitizenProfileController {
      */
     static async uploadDocument(req, res, next) {
         try {
-            console.log('DEBUG: uploadDocument called', {
-                headers: req.headers,
-                body: req.body,
-                file: req.file ? { ...req.file, buffer: undefined } : 'MISSING'
-            });
             let citizenId = req.user?.citizenId;
             // Auto-create/link logic if citizenId is missing (copied from updateProfile)
             if (!citizenId && req.user?.mobileNumber) {
@@ -763,7 +725,6 @@ class CitizenProfileController {
                 }
                 else {
                     // Create new placeholder citizen
-                    console.log(`DEBUG: Auto-creating citizen for upload: ${mobile}`);
                     const newCitizen = await db.seniorCitizen.create({
                         data: {
                             mobileNumber: mobile,
@@ -801,18 +762,14 @@ class CitizenProfileController {
             const folder = documentType === 'ProfilePhoto' ? 'photos' : 'documents';
             // Upload to cloud storage
             const fileKey = `${folder}/${citizenId}/${Date.now()}_${req.file.originalname}`;
-            console.log(`DEBUG: Uploading to cloud/local. Key: ${fileKey}`);
             const fileUrl = await cloudStorageService_1.cloudStorage.uploadFile(req.file.path, fileKey, req.file.mimetype);
-            console.log(`DEBUG: Upload successful. URL: ${fileUrl}`);
             // Clean up local file ONLY if we are using cloud storage (URL starts with http)
             // If local, fileUrl is likely valid relative path, so we keep the file.
             const isCloudUrl = fileUrl.startsWith('http');
             if (isCloudUrl && req.file.path && fs_1.default.existsSync(req.file.path)) {
-                console.log('DEBUG: Cleaning up local temp file');
                 fs_1.default.unlinkSync(req.file.path);
             }
             else {
-                console.log('DEBUG: Keeping local file for local storage mode');
             }
             const document = await db.document.create({
                 data: {

@@ -3,8 +3,10 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.app = void 0;
 const http_1 = require("http");
 const app_1 = __importDefault(require("./app"));
+exports.app = app_1.default;
 const config_1 = require("./config");
 const logger_1 = require("./config/logger");
 const database_1 = require("./config/database");
@@ -47,10 +49,8 @@ schedulerService_1.SchedulerService.init();
 (0, eventListeners_1.registerEventListeners)();
 // Start server
 // Start server
-console.log('[DEBUG] Starting server initialization...');
 try {
     httpServer.listen(PORT, '0.0.0.0', () => {
-        console.log('[DEBUG] Server listen callback triggered');
         logger_1.logger.info(`Server running on port ${PORT} in ${config_1.config.env} mode`);
         logger_1.logger.info(`API Documentation: http://localhost:${PORT}/api/${config_1.config.apiVersion}/docs`);
         logger_1.logger.info(`Health Check: http://localhost:${PORT}/health`);

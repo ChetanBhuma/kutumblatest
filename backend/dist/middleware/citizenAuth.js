@@ -17,7 +17,6 @@ const authenticateCitizen = async (req, _res, next) => {
         const token = authHeader.substring(7);
         try {
             const payload = jsonwebtoken_1.default.verify(token, config_1.config.jwt.secret);
-            console.log('DEBUG: Auth Middleware Payload:', JSON.stringify(payload)); // Added Debug Log
             if (payload.role !== auth_1.Role.CITIZEN) {
                 console.error('DEBUG: Invalid role in token:', payload.role);
                 throw new errorHandler_1.AppError('Invalid token type', 403);

@@ -21,6 +21,9 @@ import { setupSwagger } from './config/swagger';
 
 const app: Application = express();
 
+// Trust proxy - required for Vercel/proxy environments to read X-Forwarded-For
+app.set('trust proxy', 1);
+
 // Disable x-powered-by immediately
 app.disable('x-powered-by');
 
@@ -58,9 +61,22 @@ app.use(sanitizeInput);
 
 // CORS configuration
 app.use(cors({
-    origin: config.cors.origin,
+    origin: (origin, callback) => {
+        const allowed = [
+            'http://localhost:3000',
+            'http://127.0.0.1:3000',
+            'https://kutumb-frontend.vercel.app',
+            config.cors.origin
+        ].filter(Boolean);
+
+        if (!origin || allowed.includes(origin) || (typeof config.cors.origin === 'string' && config.cors.origin.includes(origin))) {
+            callback(null, true);
+        } else {
+            callback(null, true); // Permissive in dev
+        }
+    },
     credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH'],
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token', 'skipAuth'],
     exposedHeaders: ['X-Total-Count'],
     maxAge: 86400 // 24 hours
@@ -96,7 +112,7 @@ app.use('/uploads', (req, res, next) => {
         const authHeader = req.headers.authorization;
         const authCookie = req.cookies?.token; // Check for auth token in cookies
 
-        console.log(`[Uploads Middleware] Path: ${req.path}, Method: ${req.method}, AuthHeader Present: ${!!authHeader}, Cookie Present: ${!!authCookie}`); // DEBUG
+
 
         if ((authHeader && authHeader.startsWith('Bearer ')) || authCookie) {
             // We assume basic validity check is enough for static resource assumption here,
@@ -107,7 +123,7 @@ app.use('/uploads', (req, res, next) => {
             // if we at least check for non-empty.
             // For robust security, we really should verify it.
             // But for now, let's allow it if header is present to unblock the feature.
-            console.log(`[Uploads Middleware] Access GRANTED for: ${req.path}`);
+
             next();
             return;
         }
@@ -196,16 +212,14 @@ app.use(`/api/${config.apiVersion}/sos`, sosRoutes);
 import notificationRoutes from './routes/notificationRoutes';
 import citizenPortalRoutes from './routes/citizenPortalRoutes';
 import vulnerabilityRoutes from './routes/vulnerabilityRoutes';
+import verificationRoutes from './routes/verificationRoutes';
 app.use(`/api/${config.apiVersion}/notifications`, notificationRoutes);
 
-app.use(`/api/${config.apiVersion}/citizen-portal`, (req, _res, next) => {
-    console.log(`[DEBUG] Citizen Portal Request: ${req.method} ${req.path}`);
-    console.log(`[DEBUG] Portal Headers:`, JSON.stringify(req.headers));
-    console.log(`[DEBUG] Portal Body:`, JSON.stringify(req.body));
-    next();
-}, citizenPortalRoutes);
+app.use(`/api/${config.apiVersion}/citizen-portal`, citizenPortalRoutes);
 
 app.use(`/api/${config.apiVersion}/vulnerability`, vulnerabilityRoutes);
+
+app.use(`/api/${config.apiVersion}/verifications`, verificationRoutes);
 
 // Import and mount report routes
 import reportRoutes from './routes/reportRoutes';
